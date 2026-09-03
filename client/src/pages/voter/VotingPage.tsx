@@ -47,6 +47,8 @@ export default function VotingPage() {
 
   const [loading, setLoading] =
     useState(true);
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     api.get(
@@ -57,6 +59,9 @@ export default function VotingPage() {
           response.data.data
             .positions,
         );
+      })
+      .catch(() => {
+        setError("Unable to load this ballot.");
       })
       .finally(() =>
         setLoading(false),
@@ -133,6 +138,14 @@ export default function VotingPage() {
 
   if (loading) {
     return <p>Loading ballot...</p>;
+  }
+
+  if (error) {
+    return <main><p role="alert">{error}</p></main>;
+  }
+
+  if (positions.length === 0) {
+    return <main><p>No positions are available for this election.</p></main>;
   }
 
   return (

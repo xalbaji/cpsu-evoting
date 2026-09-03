@@ -15,6 +15,7 @@ interface Vote {
 export default function MyVotes() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadVotes() {
@@ -25,6 +26,8 @@ export default function MyVotes() {
         setVotes(response.data.data);
       } catch {
         setError("Unable to load your voting history.");
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -33,6 +36,10 @@ export default function MyVotes() {
 
   if (error) {
     return <p role="alert">{error}</p>;
+  }
+
+  if (loading) {
+    return <main><p>Loading voting history...</p></main>;
   }
 
   return (

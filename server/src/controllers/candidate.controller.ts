@@ -8,10 +8,14 @@ export async function getCandidates(
   req: AuthRequest,
   res: Response,
 ) {
-  const candidates = await Candidate.find({
+  const filter: Record<string, unknown> = {
     electionId: req.params.electionId,
-    isActive: true,
-  });
+  };
+  if (req.user?.role !== "ADMIN") {
+    filter.isActive = true;
+  }
+
+  const candidates = await Candidate.find(filter);
 
   return res.json({
     success: true,
@@ -59,6 +63,13 @@ export async function createCandidate(
     });
   }
 
+  if (!["DRAFT", "SCHEDULED"].includes(election.status)) {
+    return res.status(400).json({
+      success: false,
+      message: "Candidates can only be changed before voting",
+    });
+  }
+
   const candidate =
     await Candidate.create({
       electionId,
@@ -77,4 +88,39 @@ export async function createCandidate(
     success: true,
     data: candidate,
   });
+}
+
+export async function getCandidate(req: AuthRequest, res: Response) {
+  const candidate = await Candidate.findById(req.params.id);
+  if (!candidate) return res.status(404).json({ success: false, message: "Candidate not found" });
+  return res.json({ success: true, data: candidate });
+}
+
+export async function updateCandidate(req: AuthRequest, res: Response) {
+  const candidate = await Candidate.findById(req.params.id);
+  if (!candidate) return res.status(404).json({ success: false, message: "Candidate not found" });
+  const election = await Election.findById(candidate.electionId);
+  if (!election || !["DRAFT", "SCHEDULED"].includes(election.status)) return res.status(400).json({ success: false, message: "Candidates can only be changed before voting" });
+  const fields = ["candidateNumber", "firstName", "lastName", "photoUrl", "course", "yearLevel", "party", "biography", "isActive", "positionId"];
+  if (req.body.positionId) {
+    const position = await Position.findOne({
+      _id: req.body.positionId,
+      electionId: candidate.electionId,
+    });
+    if (!position) return res.status(400).json({ success: false, message: "Position not found" });
+  }
+  for (const field of fields) {
+    if (field in req.body) (candidate as any)[field] = req.body[field];
+  }
+  await candidate.save();
+  return res.json({ success: true, data: candidate });
+}
+
+export async function deleteCandidate(req: AuthRequest, res: Response) {
+  const candidate = await Candidate.findById(req.params.id);
+  if (!candidate) return res.status(404).json({ success: false, message: "Candidate not found" });
+  const election = await Election.findById(candidate.electionId);
+  if (!election || !["DRAFT", "SCHEDULED"].includes(election.status)) return res.status(400).json({ success: false, message: "Candidates can only be changed before voting" });
+  await candidate.deleteOne();
+  return res.json({ success: true, message: "Candidate deleted" });
 }

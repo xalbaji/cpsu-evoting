@@ -13,6 +13,18 @@ export default function VoteSuccess() {
   const data =
     location.state;
 
+  if (!data) {
+    return (
+      <main>
+        <h1>Submission not found</h1>
+        <p>Return to the dashboard to view active elections.</p>
+        <button onClick={() => navigate("/voter/dashboard")}>
+          Return to Dashboard
+        </button>
+      </main>
+    );
+  }
+
   return (
     <main>
       <h1>
@@ -38,7 +50,7 @@ export default function VoteSuccess() {
       </p>
 
       <p>
-        {data?.submittedAt}
+        {new Date(data.submittedAt).toLocaleString()}
       </p>
 
       <button

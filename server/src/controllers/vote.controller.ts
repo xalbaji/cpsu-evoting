@@ -144,6 +144,22 @@ export async function submitVote(
       });
     }
 
+    const positionIds = new Set(
+      positions.map((position) => position._id.toString()),
+    );
+    if (selections.some(
+      (selection: any) =>
+        !selection ||
+        !positionIds.has(selection.positionId) ||
+        !Array.isArray(selection.candidateIds),
+    )) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ballot",
+      });
+    }
+
     for (const position of positions) {
       const submitted =
         selections.find(

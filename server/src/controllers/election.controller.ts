@@ -198,3 +198,76 @@ export async function publishResults(
     data: election,
   });
 }
+
+export async function updateElection(
+  req: AuthRequest,
+  res: Response,
+) {
+  const election = await Election.findById(req.params.id);
+
+  if (!election) {
+    return res.status(404).json({ success: false, message: "Election not found" });
+  }
+
+  if (!["DRAFT", "SCHEDULED"].includes(election.status)) {
+    return res.status(400).json({ success: false, message: "Only draft or scheduled elections can be edited" });
+  }
+
+  const { title, description, academicYear, startDate, endDate } = req.body;
+  if (new Date(endDate) <= new Date(startDate)) {
+    return res.status(400).json({ success: false, message: "End date must be after start date" });
+  }
+
+  election.title = title;
+  election.description = description;
+  election.academicYear = academicYear;
+  election.startDate = startDate;
+  election.endDate = endDate;
+  await election.save();
+
+  await createAuditLog({
+    userId: req.user?.userId,
+    action: "ELECTION_UPDATED",
+    resource: "Election",
+    resourceId: election._id.toString(),
+    description: `Updated election "${election.title}"`,
+    ipAddress: req.ip,
+  });
+
+  return res.json({ success: true, data: election });
+}
+
+export async function scheduleElection(
+  req: AuthRequest,
+  res: Response,
+) {
+  const election = await Election.findById(req.params.id);
+  if (!election) return res.status(404).json({ success: false, message: "Election not found" });
+  if (election.status !== "DRAFT") return res.status(400).json({ success: false, message: "Only draft elections can be scheduled" });
+  election.status = "SCHEDULED";
+  await election.save();
+  return res.json({ success: true, message: "Election scheduled", data: election });
+}
+
+export async function cancelElection(
+  req: AuthRequest,
+  res: Response,
+) {
+  const election = await Election.findById(req.params.id);
+  if (!election) return res.status(404).json({ success: false, message: "Election not found" });
+  if (!["DRAFT", "SCHEDULED", "CLOSED"].includes(election.status)) return res.status(400).json({ success: false, message: "Election cannot be cancelled in its current state" });
+  election.status = "CANCELLED";
+  await election.save();
+  return res.json({ success: true, message: "Election cancelled", data: election });
+}
+
+export async function deleteElection(
+  req: AuthRequest,
+  res: Response,
+) {
+  const election = await Election.findById(req.params.id);
+  if (!election) return res.status(404).json({ success: false, message: "Election not found" });
+  if (election.status !== "DRAFT") return res.status(400).json({ success: false, message: "Only draft elections can be deleted" });
+  await election.deleteOne();
+  return res.json({ success: true, message: "Election deleted" });
+}

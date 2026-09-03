@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/axios";
+import BrandLogo from "../components/BrandLogo";
 
 export default function Register() {
   const navigate =
@@ -75,9 +76,8 @@ export default function Register() {
         className="auth-card"
         onSubmit={handleSubmit}
       >
-      <h1>
-        Create Voter Account
-      </h1>
+      <BrandLogo />
+      <h1>Create Voter Account</h1>
 
       {error && (
         <p>{error}</p>

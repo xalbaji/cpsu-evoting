@@ -62,12 +62,15 @@ export async function getUsers(
       voterId: { $in: users.map((user) => user._id) },
     }),
   );
+  const votedUserIdStrings = new Set(
+    [...votedUserIds].map((id) => id.toString()),
+  );
 
   return res.json({
     success: true,
     data: users.map((user) => ({
       ...user.toObject(),
-      hasVoted: votedUserIds.has(user._id),
+      hasVoted: votedUserIdStrings.has(user._id.toString()),
     })),
     pagination: {
       page,
@@ -138,6 +141,19 @@ export async function updateUser(
     success: true,
     data: user,
   });
+}
+
+export async function deleteUser(
+  req: AuthRequest,
+  res: Response,
+) {
+  const user = await User.findOne({
+    _id: req.params.id,
+    role: "VOTER",
+  });
+  if (!user) return res.status(404).json({ success: false, message: "Voter not found" });
+  await user.deleteOne();
+  return res.json({ success: true, message: "Voter deleted" });
 }
 
 export async function importVoters(
@@ -231,4 +247,17 @@ export async function importVoters(
       errors,
     },
   });
+}
+
+export async function updateProfile(req: AuthRequest, res: Response) {
+  const user = await User.findById(req.user?.userId);
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  const fields = ["firstName", "lastName", "course", "yearLevel"] as const;
+  for (const field of fields) {
+    if (field in req.body) user[field] = req.body[field];
+  }
+  await user.save();
+  const safeUser = user.toObject();
+  delete (safeUser as { passwordHash?: string }).passwordHash;
+  return res.json({ success: true, data: safeUser });
 }

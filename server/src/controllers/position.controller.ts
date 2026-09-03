@@ -60,3 +60,23 @@ export async function createPosition(
     data: position,
   });
 }
+
+export async function updatePosition(req: AuthRequest, res: Response) {
+  const position = await Position.findById(req.params.id);
+  if (!position) return res.status(404).json({ success: false, message: "Position not found" });
+  const election = await Election.findById(position.electionId);
+  if (!election || !["DRAFT", "SCHEDULED"].includes(election.status)) return res.status(400).json({ success: false, message: "Positions can only be changed before voting" });
+  const { name, description, order, votingType, maxSelections } = req.body;
+  Object.assign(position, { name, description, order, votingType, maxSelections });
+  await position.save();
+  return res.json({ success: true, data: position });
+}
+
+export async function deletePosition(req: AuthRequest, res: Response) {
+  const position = await Position.findById(req.params.id);
+  if (!position) return res.status(404).json({ success: false, message: "Position not found" });
+  const election = await Election.findById(position.electionId);
+  if (!election || !["DRAFT", "SCHEDULED"].includes(election.status)) return res.status(400).json({ success: false, message: "Positions can only be changed before voting" });
+  await position.deleteOne();
+  return res.json({ success: true, message: "Position deleted" });
+}

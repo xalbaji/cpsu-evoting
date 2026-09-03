@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { Link } from "react-router-dom";
 
 import { api } from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
@@ -16,11 +17,15 @@ interface Election {
 }
 
 export default function VoterDashboard() {
-  const { user, logout } =
+  const { user } =
     useAuth();
 
   const [elections, setElections] =
     useState<Election[]>([]);
+  const [loading, setLoading] =
+    useState(true);
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     api.get("/elections")
@@ -28,6 +33,12 @@ export default function VoterDashboard() {
         setElections(
           response.data.data,
         );
+      })
+      .catch(() => {
+        setError("Unable to load elections.");
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
@@ -40,25 +51,6 @@ export default function VoterDashboard() {
 
   return (
     <div>
-      <header>
-        <h1>
-          CPSU E-Voting
-        </h1>
-
-        <div>
-          <span>
-            {user?.firstName}{" "}
-            {user?.lastName}
-          </span>
-
-          <button
-            onClick={logout}
-          >
-            Logout
-          </button>
-        </div>
-      </header>
-
       <main>
         <h2>
           Welcome,{" "}
@@ -92,7 +84,11 @@ export default function VoterDashboard() {
             Active Elections
           </h2>
 
-          {active.length ===
+          {error ? (
+            <p role="alert">{error}</p>
+          ) : loading ? (
+            <p>Loading elections...</p>
+          ) : active.length ===
           0 ? (
             <p>
               No active elections.
@@ -117,11 +113,11 @@ export default function VoterDashboard() {
                     }
                   </p>
 
-                  <a
-                    href={`/voter/elections/${election._id}/vote`}
+                  <Link
+                    to={`/voter/elections/${election._id}/vote`}
                   >
                     Vote Now
-                  </a>
+                  </Link>
                 </article>
               ),
             )

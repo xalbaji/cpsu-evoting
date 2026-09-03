@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import BrandLogo from "../components/BrandLogo";
 
 export default function Login() {
   const navigate =
@@ -68,9 +69,7 @@ export default function Login() {
           handleSubmit
         }
       >
-        <h1>
-          CPSU E-Voting
-        </h1>
+        <BrandLogo />
 
         <p>
           Sign in to continue

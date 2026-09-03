@@ -73,6 +73,16 @@ export default function Voters() {
     }
   }
 
+  async function deleteVoter(voterId: string) {
+    if (!window.confirm("Delete this voter account?")) return;
+    try {
+      await api.delete(`/users/${voterId}`);
+      await loadVoters();
+    } catch {
+      setMessage("Unable to delete voter.");
+    }
+  }
+
   async function importCsv(
     event: ChangeEvent<HTMLInputElement>,
   ) {
@@ -171,6 +181,13 @@ export default function Voters() {
                     onClick={() => updateVoter(voter, "isActive")}
                   >
                     {voter.isActive ? "Deactivate" : "Activate"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updating === voter._id}
+                    onClick={() => deleteVoter(voter._id)}
+                  >
+                    Delete
                   </button>
                   <button
                     type="button"

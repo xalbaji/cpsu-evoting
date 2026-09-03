@@ -5,7 +5,9 @@ import {
   getUsers,
   getUser,
   updateUser,
+  deleteUser,
   importVoters,
+  updateProfile,
 } from "../controllers/user.controller.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/roles.js";
@@ -21,6 +23,8 @@ router.get(
   requireAuth,
   getProfile,
 );
+
+router.patch("/profile", requireAuth, updateProfile);
 
 router.get(
   "/",
@@ -41,6 +45,13 @@ router.patch(
   requireAuth,
   requireRole("ADMIN"),
   updateUser,
+);
+
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole("ADMIN"),
+  deleteUser,
 );
 
 router.post(

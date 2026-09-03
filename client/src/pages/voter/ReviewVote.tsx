@@ -3,6 +3,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
+import { useState } from "react";
 
 import { api } from "../../api/axios";
 
@@ -20,6 +21,8 @@ export default function ReviewVote() {
     selections,
     positions,
   } = location.state ?? {};
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   if (!selections) {
     return (
@@ -56,21 +59,33 @@ export default function ReviewVote() {
         }),
       );
 
-    const response =
-      await api.post(
-        `/elections/${id}/vote`,
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const response =
+        await api.post(
+          `/elections/${id}/vote`,
+          {
+            selections:
+              formatted,
+          },
+        );
+
+      navigate(
+        `/voter/elections/${id}/success`,
         {
-          selections:
-            formatted,
+          state: response.data.data,
         },
       );
-
-    navigate(
-      `/voter/elections/${id}/success`,
-      {
-        state: response.data.data,
-      },
-    );
+    } catch (requestError: any) {
+      setError(
+        requestError?.response?.data?.message ??
+          "Unable to submit your vote.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -153,13 +168,16 @@ export default function ReviewVote() {
         </button>
 
         <button
+          disabled={submitting}
           onClick={
             submitVote
           }
         >
-          Confirm & Submit
+          {submitting ? "Submitting..." : "Confirm & Submit"}
         </button>
       </div>
+
+      {error && <p role="alert">{error}</p>}
 
       <p>
         Once submitted,

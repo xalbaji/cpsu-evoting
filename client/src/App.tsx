@@ -19,6 +19,10 @@ import MyVotes from "./pages/voter/MyVotes";
 import Results from "./pages/voter/Results";
 import ResultsIndex from "./pages/voter/ResultsIndex";
 import Voters from "./pages/admin/Voters";
+import Profile from "./pages/Profile";
+import AuditLogs from "./pages/admin/AuditLogs";
+import AdminResults from "./pages/admin/Results";
+import AppShell from "./layouts/AppShell";
 
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { AdminRoute } from "./routes/AdminRoute";
@@ -65,81 +69,24 @@ export default function App() {
             }
           />
 
-          <Route element={
-            <ProtectedRoute />
-          }>
-            <Route
-              path="/voter/dashboard"
-              element={
-                <VoterDashboard />
-              }
-            />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppShell />}>
+              <Route path="/voter/dashboard" element={<VoterDashboard />} />
+              <Route path="/voter/elections/:id/vote" element={<VotingPage />} />
+              <Route path="/voter/elections/:id/review" element={<ReviewVote />} />
+              <Route path="/voter/elections/:id/success" element={<VoteSuccess />} />
+              <Route path="/voter/elections/:id/results" element={<Results />} />
+              <Route path="/voter/my-votes" element={<MyVotes />} />
+              <Route path="/voter/results" element={<ResultsIndex />} />
+              <Route path="/profile" element={<Profile />} />
 
-            <Route
-              path="/voter/elections/:id/vote"
-              element={
-                <VotingPage />
-              }
-            />
-
-            <Route
-              path="/voter/elections/:id/review"
-              element={
-                <ReviewVote />
-              }
-            />
-
-            <Route
-              path="/voter/elections/:id/success"
-              element={
-                <VoteSuccess />
-              }
-            />
-
-            <Route
-              path="/voter/elections/:id/results"
-              element={
-                <Results />
-              }
-            />
-
-            <Route
-              path="/voter/my-votes"
-              element={
-                <MyVotes />
-              }
-            />
-
-            <Route
-              path="/voter/results"
-              element={
-                <ResultsIndex />
-              }
-            />
-
-            <Route element={
-              <AdminRoute />
-            }>
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <AdminDashboard />
-                }
-              />
-
-              <Route
-                path="/admin/elections"
-                element={
-                  <Elections />
-                }
-              />
-
-              <Route
-                path="/admin/voters"
-                element={
-                  <Voters />
-                }
-              />
+              <Route element={<AdminRoute />}>
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/elections" element={<Elections />} />
+                <Route path="/admin/voters" element={<Voters />} />
+                <Route path="/admin/audit-logs" element={<AuditLogs />} />
+                <Route path="/admin/results" element={<AdminResults />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

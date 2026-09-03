@@ -6,6 +6,10 @@ import {
   openElection,
   closeElection,
   publishResults,
+  updateElection,
+  scheduleElection,
+  cancelElection,
+  deleteElection,
 } from "../controllers/election.controller.js";
 import { getResults } from "../controllers/result.controller.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -52,6 +56,11 @@ router.post(
   requireRole("ADMIN"),
   publishResults,
 );
+
+router.patch("/:id", requireAuth, requireRole("ADMIN"), updateElection);
+router.post("/:id/schedule", requireAuth, requireRole("ADMIN"), scheduleElection);
+router.post("/:id/cancel", requireAuth, requireRole("ADMIN"), cancelElection);
+router.delete("/:id", requireAuth, requireRole("ADMIN"), deleteElection);
 
 router.get(
   "/:electionId/results",

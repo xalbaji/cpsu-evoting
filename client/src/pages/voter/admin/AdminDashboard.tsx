@@ -18,6 +18,8 @@ export default function AdminDashboard() {
     useState<Stats | null>(
       null,
     );
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     api.get(
@@ -27,8 +29,15 @@ export default function AdminDashboard() {
         setStats(
           response.data.data,
         );
+      })
+      .catch(() => {
+        setError("Unable to load dashboard statistics.");
       });
   }, []);
+
+  if (error) {
+    return <main><p role="alert">{error}</p></main>;
+  }
 
   if (!stats) {
     return <p>Loading...</p>;
