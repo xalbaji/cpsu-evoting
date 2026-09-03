@@ -24,10 +24,12 @@ export async function getAdminDashboard(
     }),
 
     Election.countDocuments({
-      $in: [
-        "CLOSED",
-        "RESULTS_PUBLISHED",
-      ],
+      status: {
+        $in: [
+          "CLOSED",
+          "RESULTS_PUBLISHED",
+        ],
+      },
     }),
 
     Vote.countDocuments(),
