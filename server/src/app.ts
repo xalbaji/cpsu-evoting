@@ -25,6 +25,13 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+app.get("/", (_req, res) => {
+  res.json({
+    success: true,
+    message: "CPSU E-Voting API is running",
+  });
+});
+
 app.get("/api", (_req, res) => {
   res.json({
     success: true,
