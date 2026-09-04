@@ -14,7 +14,7 @@ export function requireAuth(
   next: NextFunction,
 ) {
   try {
-    const token = req.cookies?.accessToken;
+    const token = req.cookies?.token;
 
     if (!token) {
       return res.status(401).json({
