@@ -13,6 +13,10 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import auditRoutes from "./routes/audit.routes.js";
 
 const app = express();
+
+// Fixes the express-rate-limit error behind Render's load balancer
+app.set("trust proxy", 1);
+
 const allowedOrigins = [
   process.env.CLIENT_URL,
   "http://localhost:5173",
