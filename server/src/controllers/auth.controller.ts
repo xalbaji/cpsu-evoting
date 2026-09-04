@@ -101,6 +101,8 @@ export async function login(
   res: Response,
 ) {
   try {
+    const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER;
+
     const parsed = loginSchema.safeParse(
       req.body,
     );
@@ -142,15 +144,12 @@ export async function login(
       role: user.role,
     });
 
-    res.cookie("accessToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite:
-        process.env.NODE_ENV === "production"
-          ? "none"
-          : "lax",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, {
+  httpOnly: true,
+  secure: true, // Must be true on Render (HTTPS)
+  sameSite: "none", // Required for cross-site cookies between Vercel and Render
+  maxAge: 24 * 60 * 60 * 1000, // 1 day
+});
 
     return res.json({
       success: true,
