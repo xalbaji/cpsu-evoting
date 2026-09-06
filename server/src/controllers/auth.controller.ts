@@ -160,6 +160,8 @@ export async function login(
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        course: user.course,
+        yearLevel: user.yearLevel
       },
     });
   } catch (error) {
@@ -176,7 +178,11 @@ export async function logout(
   _req: Request,
   res: Response,
 ) {
-  res.clearCookie("accessToken");
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
 
   return res.json({
     success: true,
