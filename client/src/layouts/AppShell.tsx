@@ -1,6 +1,6 @@
 // src/layouts/AppShell.tsx
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "../components/BrandLogo";
 
@@ -20,7 +20,6 @@ const Icons = {
 export default function AppShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isAdmin = user?.role === "ADMIN";
 
