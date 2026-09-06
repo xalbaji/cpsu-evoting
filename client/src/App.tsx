@@ -69,7 +69,10 @@ export default function App() {
             }
           />
 
+          {/* All protected routes require authentication first */}
           <Route element={<ProtectedRoute />}>
+            
+            {/* Voter Layout Branch (Wrapped in AppShell) */}
             <Route element={<AppShell />}>
               <Route path="/voter/dashboard" element={<VoterDashboard />} />
               <Route path="/voter/elections/:id/vote" element={<VotingPage />} />
@@ -79,15 +82,17 @@ export default function App() {
               <Route path="/voter/my-votes" element={<MyVotes />} />
               <Route path="/voter/results" element={<ResultsIndex />} />
               <Route path="/profile" element={<Profile />} />
-
-              <Route element={<AdminRoute />}>
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                <Route path="/admin/elections" element={<Elections />} />
-                <Route path="/admin/voters" element={<Voters />} />
-                <Route path="/admin/audit-logs" element={<AuditLogs />} />
-                <Route path="/admin/results" element={<AdminResults />} />
-              </Route>
             </Route>
+
+            {/* Admin Layout Branch (Wrapped in AdminRoute, using its own layout shell or matching structure) */}
+            <Route element={<AdminRoute />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/elections" element={<Elections />} />
+              <Route path="/admin/voters" element={<Voters />} />
+              <Route path="/admin/audit-logs" element={<AuditLogs />} />
+              <Route path="/admin/results" element={<AdminResults />} />
+            </Route>
+
           </Route>
         </Routes>
       </AuthProvider>
