@@ -16,6 +16,7 @@ interface AuthContextType {
     password: string,
   ) => Promise<User>;
   logout: () => Promise<void>;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
 const AuthContext =
@@ -78,6 +79,7 @@ export function AuthProvider({
         loading,
         login,
         logout,
+        setUser,
       }}
     >
       {children}
