@@ -1,0 +1,197 @@
+/* ==========================================================================
+   CPSU E-Voting — Tailwind CSS v4
+   Replaces old index.css + App.css. All existing class names are preserved.
+   ========================================================================== */
+@import "tailwindcss";
+
+/* ---------- 1. Design tokens → generates utilities like
+   bg-brand-500, text-ink-600, animate-fade-up, font-sans ---------- */
+@theme {
+  /* Brand greens (sampled from your old CSS) */
+  --color-brand-50:  #f8fbfa;
+  --color-brand-100: #edf4f2;
+  --color-brand-200: #deece9;
+  --color-brand-300: #d5eee9;
+  --color-brand-400: #c5d7d3;
+  --color-brand-500: #117f76;   /* primary button */
+  --color-brand-600: #08766f;   /* links */
+  --color-brand-700: #0b625c;   /* hover */
+  --color-brand-800: #0e5250;
+  --color-brand-900: #0e4643;   /* header, headings */
+
+  /* Text colors */
+  --color-ink-400: #71817e;
+  --color-ink-500: #617875;
+  --color-ink-600: #49605c;
+  --color-ink-700: #36514d;
+  --color-ink-900: #153b3a;
+
+  /* Errors */
+  --color-danger-50:  #fff0f0;
+  --color-danger-700: #9f2d2d;
+
+  /* Fonts */
+  --font-sans:  Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+
+  /* Animations used by VoterDashboard */
+  --animate-fade-up: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-wave: wave 2.4s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes wave {
+    0%, 60%, 100% { transform: rotate(0deg); }
+    10%, 30%      { transform: rotate(14deg); }
+    20%, 40%      { transform: rotate(-8deg); }
+  }
+}
+
+/* ---------- 2. Base (preflight + your old global styles) ---------- */
+@layer base {
+  html {
+    @apply antialiased;
+    text-rendering: optimizeLegibility;
+    font-synthesis: none;
+  }
+
+  body {
+    @apply min-h-screen min-w-[320px] bg-brand-50 font-serif text-ink-900;
+    background-image: radial-gradient(circle at 10% 10%, rgba(49, 160, 153, 0.2), transparent 28%);
+  }
+
+  /* Restore browser-like heading/paragraph rhythm that Tailwind's preflight
+     removes — so existing pages keep their spacing. Explicit styles override. */
+  h1 { @apply text-[2em] font-bold; margin-block: 0.67em; }
+  h2 { @apply text-[1.5em] font-bold; margin-block: 0.83em; }
+  h3 { @apply text-[1.17em] font-bold; margin-block: 0.83em; }
+  h4, h5, h6 { @apply text-[1em] font-bold; margin-block: 0.83em; }
+  p { margin-block: 1em; }
+  ul, ol { list-style: revert; margin-block: 1em; padding-inline-start: 40px; }
+
+  a { @apply font-sans font-bold text-brand-600 underline; }
+
+  /* Default controls — same look as your old globals.
+     Any Tailwind utility on an element overrides these automatically. */
+  button {
+    @apply cursor-pointer rounded-lg bg-brand-500 px-[18px] py-[11px]
+           font-sans text-sm font-bold text-white;
+  }
+  button:hover:not(:disabled) { @apply bg-brand-700; }
+  button:disabled { @apply cursor-not-allowed opacity-55; }
+
+  input, textarea, select {
+    @apply w-full rounded-[7px] border border-brand-400 bg-white px-3 py-[11px]
+           text-ink-900 outline-none;
+  }
+  input:focus, textarea:focus, select:focus {
+    @apply border-brand-500 ring-3 ring-brand-500/15;
+  }
+}
+
+/* ---------- 3. Components — your original class names, rebuilt ---------- */
+@layer components {
+  #root, .app-shell { @apply min-h-screen; }
+
+  /* ----- Auth pages ----- */
+  .auth-page { @apply grid min-h-screen place-items-center p-6; }
+  .auth-card {
+    @apply flex w-full max-w-[430px] flex-col gap-3.5 rounded-2xl border border-brand-500/20
+           bg-white/95 p-9 shadow-[0_24px_60px_rgba(21,59,58,0.14)];
+  }
+  .auth-card h1 { @apply m-0 text-center text-[clamp(30px,6vw,44px)] leading-none text-brand-900; }
+  .auth-card p  { @apply mb-2 text-center font-sans text-ink-500; }
+  .auth-card .error,
+  [role="alert"] { @apply rounded-[7px] bg-danger-50 px-3 py-2.5 font-sans text-sm text-danger-700; }
+  .auth-card button[type="button"] { @apply bg-[#e0f0ed] text-brand-600; }
+
+  /* ----- Header ----- */
+  .app-header {
+    @apply sticky top-0 z-10 flex min-h-[68px] items-center justify-between gap-5
+           bg-brand-900 py-2.5 font-sans text-white
+           px-[max(24px,calc((100vw_-_1120px)/2))];
+  }
+  .brand, .brand-logo { @apply inline-flex items-center text-inherit no-underline; }
+  .brand-logo img { @apply block h-12 w-[132px] object-contain; }
+  .auth-card > .brand-logo { @apply w-full justify-center; }
+  .auth-card > .brand-logo img { @apply aspect-video h-auto w-[min(100%,310px)] object-contain; }
+  .brand-mark { @apply grid h-[34px] w-[34px] place-items-center rounded-lg bg-brand-300 font-extrabold text-brand-900; }
+  .header-account { @apply flex items-center gap-3.5; }
+  .app-header button { @apply bg-brand-300 px-3 py-2 text-brand-900; }
+
+  /* ----- Shell / sidebar ----- */
+  .shell-body { @apply grid min-h-[calc(100vh_-_68px)] grid-cols-[220px_1fr]; }
+  .sidebar { @apply bg-brand-200 px-[18px] py-[30px]; }
+  .sidebar-label {
+    @apply mx-3 mb-3.5 font-sans text-[11px] font-extrabold uppercase tracking-[1px] text-ink-400;
+  }
+  .sidebar-nav { @apply grid gap-1.5; }
+  .sidebar-nav a { @apply rounded-lg px-3 py-[11px] font-sans text-sm text-ink-700 no-underline; }
+  .sidebar-nav a:hover,
+  .sidebar-nav a.active { @apply bg-white text-brand-600; }
+  .shell-content { @apply min-w-0; }
+
+  /* ----- Main content ----- */
+  main { @apply mx-auto w-[min(100%_-_32px,1120px)] py-10; }
+  main > h1 { @apply m-0 mb-7 text-[clamp(32px,5vw,50px)] text-brand-900; }
+
+  main > section,
+  main > article,
+  main > form:not(.auth-card) {
+    @apply mb-[22px] rounded-xl border border-[#d7e5e1] bg-white/90 p-6
+           shadow-[0_10px_26px_rgba(21,59,58,0.06)];
+  }
+  main > section > form,
+  main > form:not(.auth-card),
+  .ballot-editor form { @apply grid gap-[15px]; }
+  main label { @apply grid gap-1.5 font-sans text-[13px] font-bold text-ink-600; }
+
+  main section article {
+    @apply mr-3.5 mb-3.5 inline-block w-[calc(50%_-_14px)] rounded-[10px] border border-[#d7e5e1]
+           bg-brand-50 p-[18px] align-top;
+  }
+  main section article h3,
+  main article h3 { @apply m-0 mb-2 text-brand-900; }
+  main section article p,
+  main article p { @apply my-1.5 text-ink-500; }
+  main section article button,
+  main article button,
+  main > section form button { @apply mr-2 mt-[5px]; }
+
+  /* ----- Candidates ----- */
+  .candidate-card {
+    @apply my-2 flex w-full items-center justify-between gap-3 rounded-lg border border-[#c5dcd7]
+           bg-brand-50 text-left text-ink-900;
+  }
+  .candidate-card.selected { @apply border-brand-500 bg-brand-500 text-white; }
+  .candidate-card small { @apply font-normal text-ink-500; }
+  .candidate-card.selected small { @apply text-[#d8eee8]; }
+  .candidate-photo { @apply mb-2.5 block h-14 w-14 rounded-full object-cover; }
+
+  /* ----- Tables ----- */
+  table { @apply w-full border-collapse rounded-lg bg-white text-left font-sans; }
+  th, td { @apply border-b border-[#e0ebe8] p-3; }
+  th { @apply bg-[#e3efec] text-[13px] uppercase text-ink-600; }
+
+  /* ----- Ballot editor ----- */
+  .ballot-editor { @apply mt-5 border-t border-[#d7e5e1] pt-4; }
+  .ballot-editor h4 { @apply mb-2.5 mt-[18px] font-sans text-brand-900; }
+
+  /* Wave emoji pivot point (VoterDashboard) */
+  .animate-wave { transform-origin: 70% 70%; }
+
+  /* ----- Mobile ----- */
+  @media (max-width: 700px) {
+    .app-header { @apply flex-col items-start; }
+    .brand-logo img { @apply h-[42px] w-[118px]; }
+    .shell-body { @apply block; }
+    .sidebar { @apply px-3 py-2.5; }
+    .sidebar-nav { @apply flex overflow-x-auto; }
+    .sidebar-nav a { @apply whitespace-nowrap; }
+    .auth-card { @apply px-[22px] py-7; }
+    main { @apply w-[min(100%_-_24px,1120px)] py-6; }
+    table { @apply block overflow-x-auto whitespace-nowrap; }
+  }
+}
