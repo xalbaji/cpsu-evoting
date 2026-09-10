@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SVGProps } from "react";
+import type { ReactNode, SVGProps } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../../api/axios";
@@ -168,7 +168,7 @@ const NAV_ITEMS = [
 
 /* ---------------- small components ---------------- */
 function MiniStat({ label, value, delay }: {
-  label: string; value: string | number; delay: number;
+  label: string; value: ReactNode; delay: number;
 }) {
   return (
     <div

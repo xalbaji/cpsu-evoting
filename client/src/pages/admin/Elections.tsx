@@ -442,10 +442,11 @@ function EditElectionForm({
 
 /* ---------------- election row ---------------- */
 function ElectionRow({
-  election, onAction, busy,
+  election, onAction, onEdited, busy,
 }: {
   election: Election;
   onAction: (election: Election, action: "open" | "close" | "publish" | "schedule" | "cancel" | "delete") => void;
+  onEdited: () => void;
   busy: boolean;
 }) {
   const status = statusKey(election);
@@ -540,7 +541,7 @@ function ElectionRow({
       </div>
 
       {editing && (
-        <EditElectionForm election={election} onSaved={() => { setEditing(false); onAction(election, "edited" as never); }} onCancel={() => setEditing(false)} />
+        <EditElectionForm election={election} onSaved={() => { setEditing(false); onEdited(); }} onCancel={() => setEditing(false)} />
       )}
 
       {expanded && !editing && (
@@ -815,7 +816,7 @@ export default function Elections() {
                   </div>
                 ) : (
                   sorted.map((election) => (
-                    <ElectionRow key={election._id} election={election} onAction={onAction} busy={busy} />
+                    <ElectionRow key={election._id} election={election} onAction={onAction} onEdited={onEdited} busy={busy} />
                   ))
                 )}
               </section>
