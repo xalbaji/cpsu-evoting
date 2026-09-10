@@ -395,7 +395,9 @@ export default function VoterDashboard() {
       {/* Trust banner */}
       <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-100/60 p-4 text-sm text-brand-900">
         <ShieldIcon className="h-5 w-5 shrink-0 text-brand-600" />
-        Your ballot is encrypted and anonymous — even administrators can't link your identity to your vote.
+        <span className="min-w-0 flex-1 leading-5">
+          Your ballot is encrypted and anonymous — even administrators can't link your identity to your vote.
+        </span>
       </div>
     </div>
   );

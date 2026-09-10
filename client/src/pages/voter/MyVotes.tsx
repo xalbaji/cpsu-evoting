@@ -378,7 +378,9 @@ export default function MyVotes() {
       {votes.length > 0 && (
         <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-100/70 p-4 font-sans text-sm text-brand-900">
           <ShieldIcon className="h-5 w-5 shrink-0 text-brand-600" />
-          Your ballot is encrypted and anonymous — even administrators can't link your identity to your vote. Your reference code only confirms that <em>you voted</em>, never <em>what you chose</em>.
+          <span className="min-w-0 flex-1 leading-5">
+            Your ballot is encrypted and anonymous — even administrators can't link your identity to your vote. Your reference code only confirms that <em>you voted</em>, never <em>what you chose</em>.
+          </span>
         </div>
       )}
     </div>

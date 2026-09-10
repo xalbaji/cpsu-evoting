@@ -316,7 +316,9 @@ export default function ResultsIndex() {
       {elections.length > 0 && (
         <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-100/70 p-4 font-sans text-sm text-brand-900">
           <ShieldIcon className="h-5 w-5 shrink-0 text-brand-600" />
-          Results are computed directly from ballot records and are final once published — no manual edits, no surprises.
+          <span className="min-w-0 flex-1 leading-5">
+            Results are computed directly from ballot records and are final once published — no manual edits, no surprises.
+          </span>
         </div>
       )}
     </div>
