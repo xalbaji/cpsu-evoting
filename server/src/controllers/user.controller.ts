@@ -198,12 +198,19 @@ export async function importVoters(
     value.replace(/^\uFEFF/, "").trim(),
   );
   const hasHeader = requiredColumns.every((column) => firstRow.includes(column));
+  const dataRows = parsedRows.map((values) => {
+    const normalized = [...values];
+    while (normalized.length > 0 && normalized[normalized.length - 1] === "") {
+      normalized.pop();
+    }
+    return normalized;
+  });
   const rows: Record<string, string>[] = hasHeader
-    ? parsedRows.slice(1).map((values) =>
+    ? dataRows.slice(1).map((values) =>
         Object.fromEntries(firstRow.map((column, index) => [column, values[index] ?? ""])),
       )
-    : parsedRows.every((values) => values.length === requiredColumns.length)
-      ? parsedRows.map((values) =>
+    : dataRows.every((values) => values.length === requiredColumns.length)
+      ? dataRows.map((values) =>
           Object.fromEntries(requiredColumns.map((column, index) => [column, values[index] ?? ""])),
         )
       : [];
