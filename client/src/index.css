@@ -55,11 +55,13 @@
     @apply antialiased;
     text-rendering: optimizeLegibility;
     font-synthesis: none;
+    overflow-x: hidden;
   }
 
   body {
     @apply min-h-screen min-w-[320px] bg-brand-50 font-serif text-ink-900;
     background-image: radial-gradient(circle at 10% 10%, rgba(49, 160, 153, 0.2), transparent 28%);
+    overflow-x: hidden;
   }
 
   /* Restore browser-like heading/paragraph rhythm that Tailwind's preflight
@@ -193,5 +195,17 @@
     .auth-card { @apply px-[22px] py-7; }
     main { @apply w-[min(100%_-_24px,1120px)] py-6; }
     table { @apply block overflow-x-auto whitespace-nowrap; }
+    main > section,
+    main > article,
+    main > form:not(.auth-card) { @apply p-4; }
+    main h1 { @apply text-3xl; }
+    button { @apply px-3.5 py-2.5; }
+  }
+
+  @media (max-width: 420px) {
+    main { @apply w-[calc(100%_-_16px)] py-4; }
+    main > section,
+    main > article,
+    main > form:not(.auth-card) { @apply rounded-xl p-3; }
   }
 }

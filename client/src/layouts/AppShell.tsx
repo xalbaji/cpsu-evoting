@@ -32,7 +32,7 @@ export default function AppShell() {
   return (
     <>
       <style>{`
-        .admin-page { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; min-height: 100vh; color: #1e293b; }
+        .admin-page { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; min-height: 100vh; color: #1e293b; overflow-x: hidden; }
         
         /* Navbar */
         .admin-navbar { background: #0f3d3e; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -51,7 +51,7 @@ export default function AppShell() {
         .admin-layout { display: flex; }
         
         /* Sidebar */
-        .admin-sidebar { width: 256px; min-height: calc(100vh - 64px); background: #ffffff; border-right: 1px solid #deece9; padding: 20px 0; position: fixed; top: 64px; left: 0; z-index: 40; transition: transform 0.3s ease; }
+        .admin-sidebar { width: 256px; min-height: calc(100vh - 64px); background: #ffffff; border-right: 1px solid #deece9; padding: 20px 0; position: fixed; top: 64px; left: 0; z-index: 40; transition: transform 0.3s ease; box-sizing: border-box; }
         .sidebar-label { padding: 0 20px 14px; font-size: 0.7rem; font-weight: 800; color: #71817e; text-transform: uppercase; letter-spacing: 0.08em; }
         .sidebar-link { display: flex; align-items: center; gap: 12px; padding: 11px 18px; margin: 0 10px; border-radius: 11px; color: #49605c; text-decoration: none; font-weight: 500; font-size: 0.88rem; transition: all 0.2s; }
         .sidebar-link:hover { background: #f8fafc; color: #0f766e; }
@@ -62,12 +62,22 @@ export default function AppShell() {
         .admin-main { margin-left: 256px; padding: 32px 40px 48px; width: calc(100% - 256px); box-sizing: border-box; min-height: calc(100vh - 64px); }
 
         @media (max-width: 768px) {
+          .admin-navbar { padding: 0 16px; }
           .menu-btn { display: flex; }
           .admin-brand { display: none; }
-          .admin-sidebar { transform: translateX(-100%); box-shadow: 4px 0 24px rgba(0,0,0,0.15); }
+          .admin-sidebar { width: min(86vw, 280px); transform: translateX(-100%); box-shadow: 4px 0 24px rgba(0,0,0,0.15); }
           .admin-sidebar.open { transform: translateX(0); }
           .sidebar-overlay.open { display: block; opacity: 1; pointer-events: auto; }
-          .admin-main { margin-left: 0; width: 100%; padding: 24px 20px 40px; }
+          .admin-main { margin-left: 0; width: 100%; max-width: 100%; padding: 24px 16px 40px; }
+        }
+
+        @media (max-width: 420px) {
+          .admin-navbar { height: 58px; padding: 0 12px; }
+          .admin-sidebar { top: 58px; min-height: calc(100vh - 58px); }
+          .admin-user { gap: 8px; }
+          .admin-user-name { display: none; }
+          .admin-logout { padding: 7px 10px; font-size: 0.78rem; }
+          .admin-main { padding: 18px 12px 32px; }
         }
       `}</style>
 
