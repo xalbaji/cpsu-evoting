@@ -125,11 +125,17 @@ export async function updateUser(
     }
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.params.id,
-    updates,
-    { new: true, runValidators: true },
-  ).select("-passwordHash");
+  const newPassword = typeof req.body.newPassword === "string"
+    ? req.body.newPassword
+    : "";
+  if (newPassword && newPassword.length < 8) {
+    return res.status(400).json({
+      success: false,
+      message: "New password must be at least 8 characters.",
+    });
+  }
+
+  const user = await User.findById(req.params.id).select("+passwordHash");
 
   if (!user) {
     return res.status(404).json({
@@ -138,9 +144,17 @@ export async function updateUser(
     });
   }
 
+  Object.assign(user, updates);
+  if (newPassword) {
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+  }
+  await user.save();
+  const safeUser = user.toObject();
+  delete (safeUser as { passwordHash?: string }).passwordHash;
+
   return res.json({
     success: true,
-    data: user,
+    data: safeUser,
   });
 }
 

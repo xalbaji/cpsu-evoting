@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment } from "react";
 import type { SVGProps } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -209,6 +210,10 @@ export default function Voters() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [editingVoter, setEditingVoter] = useState<Voter | null>(null);
+  const [editStudentId, setEditStudentId] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   // CSV import
   const fileRef = useRef<HTMLInputElement>(null);
@@ -264,6 +269,43 @@ export default function Voters() {
     setSearch("");
     setPage(1);
     load({ page: 1, search: "" });
+  };
+
+  const beginEdit = (voter: Voter) => {
+    setEditingVoter(voter);
+    setEditStudentId(voter.studentId);
+    setNewPassword("");
+  };
+
+  const cancelEdit = () => {
+    setEditingVoter(null);
+    setEditStudentId("");
+    setNewPassword("");
+  };
+
+  const saveAccount = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingVoter || editSaving) return;
+    if (newPassword && newPassword.length < 8) {
+      window.alert("New password must be at least 8 characters.");
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const payload: { studentId: string; newPassword?: string } = {
+        studentId: editStudentId.trim(),
+      };
+      if (newPassword) payload.newPassword = newPassword;
+      await api.patch(`/users/${editingVoter._id}`, payload);
+      await load();
+      flash(`${editingVoter.firstName} ${editingVoter.lastName}'s account was updated.`);
+      cancelEdit();
+    } catch (err: any) {
+      window.alert(err?.response?.data?.message ?? "Unable to update the account.");
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   /* ✅ PATCH /users/:id — updateUser allowedFields: isActive, isVerified */
@@ -569,7 +611,8 @@ export default function Voters() {
                         {voters.map((voter) => {
                           const busy = rowBusy === voter._id;
                           return (
-                            <tr key={voter._id} className="transition-colors hover:bg-brand-50/40">
+                            <Fragment key={voter._id}>
+                            <tr className="transition-colors hover:bg-brand-50/40">
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                   <Avatar firstName={voter.firstName} lastName={voter.lastName} avatarUrl={voter.avatarUrl} />
@@ -608,6 +651,13 @@ export default function Voters() {
                               <td className="px-6 py-4">
                                 <div className="flex justify-end gap-2">
                                   <button
+                                    onClick={() => beginEdit(voter)}
+                                    disabled={busy}
+                                    className="!bg-white !px-3 !py-1.5 !text-xs !text-brand-700 ring-1 ring-brand-300 hover:!bg-brand-50 active:scale-95"
+                                  >
+                                    Edit account
+                                  </button>
+                                  <button
                                     onClick={() => toggleField(voter, "isActive")}
                                     disabled={busy}
                                     className={`!px-3 !py-1.5 !text-xs active:scale-95 ${
@@ -641,6 +691,44 @@ export default function Voters() {
                                 </div>
                               </td>
                             </tr>
+                            {editingVoter?._id === voter._id && (
+                              <tr key={`${voter._id}-edit`} className="bg-brand-50/60">
+                                <td colSpan={7} className="px-6 py-5">
+                                  <form onSubmit={saveAccount} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+                                    <label>
+                                      Student ID
+                                      <input
+                                        required
+                                        value={editStudentId}
+                                        onChange={(event) => setEditStudentId(event.target.value)}
+                                        className="mt-1"
+                                      />
+                                    </label>
+                                    <label>
+                                      New password
+                                      <input
+                                        type="password"
+                                        minLength={8}
+                                        value={newPassword}
+                                        onChange={(event) => setNewPassword(event.target.value)}
+                                        placeholder="Leave blank to keep current"
+                                        className="mt-1"
+                                      />
+                                    </label>
+                                    <button type="submit" disabled={editSaving} className="!py-2.5 active:scale-95">
+                                      {editSaving ? "Saving…" : "Save changes"}
+                                    </button>
+                                    <button type="button" onClick={cancelEdit} disabled={editSaving} className="!bg-white !py-2.5 !text-ink-700 ring-1 ring-brand-300 hover:!bg-brand-50">
+                                      Cancel
+                                    </button>
+                                  </form>
+                                  <p className="mt-3 font-sans text-xs text-ink-500">
+                                    Passwords are write-only. The current password cannot be viewed by administrators.
+                                  </p>
+                                </td>
+                              </tr>
+                            )}
+                            </Fragment>
                           );
                         })}
                       </tbody>
