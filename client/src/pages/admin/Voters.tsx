@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 import BrandLogo from "../../components/BrandLogo";
+import { ThemeSettings } from "../../components/ThemeSettings";
 
 /* ---------------- types (matches getUsers) ---------------- */
 interface Voter {
@@ -443,6 +444,7 @@ export default function Voters() {
             );
           })}
         </nav>
+        <div className="admin-sidebar-settings"><ThemeSettings /></div>
       </aside>
 
       {/* ── Main ── */}

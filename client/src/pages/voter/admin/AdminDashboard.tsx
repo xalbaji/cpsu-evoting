@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../../api/axios";
 import { useAuth } from "../../../context/AuthContext";
 import BrandLogo from "../../../components/BrandLogo";
+import { ThemeSettings } from "../../../components/ThemeSettings";
 
 /* ---------------- types (matches getAdminDashboard) ---------------- */
 interface Stats {
@@ -237,6 +238,13 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [passwordPanelOpen, setPasswordPanelOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const adminClickCount = useRef(0);
+  const adminClickTimer = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -263,13 +271,48 @@ export default function AdminDashboard() {
     navigate("/login");
   };
 
+  const handleAdminSecretClick = () => {
+    adminClickCount.current += 1;
+    if (adminClickTimer.current) window.clearTimeout(adminClickTimer.current);
+    adminClickTimer.current = window.setTimeout(() => { adminClickCount.current = 0; }, 900);
+    if (adminClickCount.current === 3) {
+      adminClickCount.current = 0;
+      setPasswordMessage("");
+      setPasswordPanelOpen(true);
+    }
+  };
+
+  const handlePasswordChange = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPasswordMessage("");
+    if (newPassword.length < 8) {
+      setPasswordMessage("Password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage("Passwords do not match.");
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await api.patch("/auth/change-password", { newPassword });
+      setPasswordMessage("Password changed successfully.");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (requestError: any) {
+      setPasswordMessage(requestError?.response?.data?.message ?? "Unable to change password.");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const turnout = stats ? Math.max(0, Math.min(stats.voterTurnout ?? 0, 100)) : 0;
   const activeVotes = stats ? Math.round((turnout / 100) * stats.totalVoters) : 0;
 
   return (
-    <div className="min-h-screen bg-brand-50 font-serif text-ink-900">
+    <div className="min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
       {/* ── Navbar ── */}
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-4 bg-brand-900 px-4 font-sans text-white shadow-md lg:px-6">
+      <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between gap-4 bg-brand-900 px-4 font-sans text-white shadow-md lg:px-6">
         <div className="flex items-center gap-3">
           <button
             className="rounded-lg p-2 transition hover:bg-white/10 lg:hidden"
@@ -286,7 +329,14 @@ export default function AdminDashboard() {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-brand-300">CPSU Administrator</span>
+          <button
+            type="button"
+            onClick={handleAdminSecretClick}
+            className="bg-transparent p-0 text-sm font-medium text-brand-300 hover:bg-transparent"
+            aria-label="Administrator account"
+          >
+            CPSU Administrator
+          </button>
           <button
             onClick={handleLogout}
             className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold transition hover:bg-white/20 active:scale-95"
@@ -297,6 +347,35 @@ export default function AdminDashboard() {
       </header>
 
       {/* ── Mobile overlay ── */}
+      {passwordPanelOpen && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/45 p-4">
+          <section className="w-full max-w-md rounded-2xl bg-white p-6 font-sans shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="change-admin-password-title">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="change-admin-password-title" className="m-0 text-xl font-bold text-brand-900">Change administrator password</h2>
+                <p className="mt-1 text-sm text-ink-500">Set a new password for the administrator account.</p>
+              </div>
+              <button type="button" onClick={() => setPasswordPanelOpen(false)} className="bg-transparent p-1 text-xl text-ink-500 hover:bg-brand-50" aria-label="Close password form">×</button>
+            </div>
+            <form className="grid gap-4" onSubmit={handlePasswordChange}>
+              <label className="grid gap-1.5 text-sm font-bold text-ink-700">
+                New password
+                <input type="password" minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" required />
+              </label>
+              <label className="grid gap-1.5 text-sm font-bold text-ink-700">
+                Confirm new password
+                <input type="password" minLength={8} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" required />
+              </label>
+              {passwordMessage && <p className="m-0 text-sm font-semibold text-brand-700" role="status">{passwordMessage}</p>}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setPasswordPanelOpen(false)} className="bg-brand-100 text-brand-700 hover:bg-brand-200">Cancel</button>
+                <button type="submit" disabled={passwordSaving}>{passwordSaving ? "Saving…" : "Save password"}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] lg:hidden"
@@ -306,7 +385,7 @@ export default function AdminDashboard() {
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed bottom-0 left-0 top-16 z-40 w-64 border-r border-brand-200 bg-white transition-transform duration-300 lg:translate-x-0 ${
+        className={`admin-dashboard-sidebar fixed bottom-0 left-0 top-16 z-40 w-64 border-r border-brand-200 bg-white transition-transform duration-300 lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -333,6 +412,7 @@ export default function AdminDashboard() {
             );
           })}
         </nav>
+        <div className="admin-sidebar-settings"><ThemeSettings /></div>
       </aside>
 
       {/* ── Main ── */}

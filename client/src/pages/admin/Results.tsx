@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 import BrandLogo from "../../components/BrandLogo";
+import { ThemeSettings } from "../../components/ThemeSettings";
 
 interface Election {
   _id: string;
@@ -162,6 +163,7 @@ export default function AdminResults() {
                 {item.icon}{item.label}
               </Link>
             ))}
+            <div className="admin-sidebar-settings"><ThemeSettings /></div>
           </aside>
 
           <main className="admin-main">

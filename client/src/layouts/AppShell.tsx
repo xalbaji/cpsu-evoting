@@ -4,6 +4,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "../components/BrandLogo";
+import { ThemeSettings } from "../components/ThemeSettings";
 
 /* ─── Shared Icons ─── */
 const Icons = {
@@ -32,10 +33,10 @@ export default function AppShell() {
   return (
     <>
       <style>{`
-        .admin-page { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; min-height: 100vh; color: #1e293b; overflow-x: hidden; }
+        .admin-page { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; min-height: 100vh; padding-top: 64px; color: #1e293b; overflow-x: hidden; }
         
         /* Navbar */
-        .admin-navbar { background: #0f3d3e; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .admin-navbar { background: #0f3d3e; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; inset: 0 0 auto; z-index: 50; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .admin-logo-wrap { display: flex; align-items: center; gap: 12px; }
         .admin-logo-box { width: 40px; height: 40px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 5px; box-sizing: border-box; flex-shrink: 0; }
         .admin-logo-box img { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -72,6 +73,7 @@ export default function AppShell() {
         }
 
         @media (max-width: 420px) {
+          .admin-page { padding-top: 58px; }
           .admin-navbar { height: 58px; padding: 0 12px; }
           .admin-sidebar { top: 58px; min-height: calc(100vh - 58px); }
           .admin-user { gap: 8px; }
@@ -143,6 +145,7 @@ export default function AppShell() {
                 </NavLink>
               </>
             )}
+            <div className="admin-sidebar-settings"><ThemeSettings /></div>
           </aside>
 
           {/* Main Content Area */}

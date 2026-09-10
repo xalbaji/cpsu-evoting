@@ -5,7 +5,9 @@ import { createAccessToken } from "../utils/jwt.js";
 import {
   loginSchema,
   registerSchema,
+  changePasswordSchema,
 } from "../validators/auth.validator.js";
+import { AuthRequest } from "../middleware/auth.js";
 
 export async function register(
   req: Request,
@@ -198,4 +200,31 @@ export async function logout(
     success: true,
     message: "Logged out successfully",
   });
+}
+
+export async function changeAdminPassword(
+  req: AuthRequest,
+  res: Response,
+) {
+  if (req.user?.role !== "ADMIN") {
+    return res.status(403).json({ success: false, message: "Administrator access required" });
+  }
+
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: "New password must be at least 8 characters.",
+    });
+  }
+
+  const user = await User.findById(req.user.userId).select("+passwordHash");
+  if (!user || user.role !== "ADMIN") {
+    return res.status(404).json({ success: false, message: "Administrator account not found" });
+  }
+
+  user.passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+  await user.save();
+
+  return res.json({ success: true, message: "Administrator password changed successfully" });
 }

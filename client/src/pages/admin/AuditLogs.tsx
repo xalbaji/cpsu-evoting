@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 import BrandLogo from "../../components/BrandLogo";
+import { ThemeSettings } from "../../components/ThemeSettings";
 
 /* ---------------- types (matches getAuditLogs) ---------------- */
 interface AuditActor {
@@ -388,6 +389,7 @@ export default function AuditLogs() {
             );
           })}
         </nav>
+        <div className="admin-sidebar-settings"><ThemeSettings /></div>
       </aside>
 
       {/* ── Main ── */}

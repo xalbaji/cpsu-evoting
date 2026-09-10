@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
 import BrandLogo from "../../components/BrandLogo";
+import { ThemeSettings } from "../../components/ThemeSettings";
 /* ---------------- types ---------------- */
 interface Election {
   _id: string;
@@ -689,9 +690,9 @@ export default function Elections() {
   });
 
   return (
-    <div className="min-h-screen bg-brand-50 font-serif text-ink-900">
+    <div className="min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
       {/* ── Navbar ── */}
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-4 bg-brand-900 px-4 font-sans text-white shadow-md lg:px-6">
+      <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between gap-4 bg-brand-900 px-4 font-sans text-white shadow-md lg:px-6">
         <div className="flex items-center gap-3">
           <button
             className="rounded-lg p-2 transition hover:bg-white/10 lg:hidden"
@@ -748,6 +749,7 @@ export default function Elections() {
             );
           })}
         </nav>
+        <div className="admin-sidebar-settings"><ThemeSettings /></div>
       </aside>
 
       {/* ── Main ── */}
