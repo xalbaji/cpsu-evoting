@@ -361,7 +361,11 @@ export default function Voters() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await api.post("/users/import", formData);
+      const response = await api.post("/users/import", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       const result: ImportResult = response.data?.data ?? { imported: 0, rejected: 0, errors: [] };
       setImportResult(result);
       if (fileRef.current) fileRef.current.value = "";
