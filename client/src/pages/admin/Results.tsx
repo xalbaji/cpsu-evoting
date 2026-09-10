@@ -83,10 +83,10 @@ export default function AdminResults() {
   return (
     <>
       <style>{`
-        .admin-page { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; background: #f8fbfa; min-height: 100vh; color: #153b3a; }
+        .admin-page { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; background: #f8fbfa; min-height: 100vh; padding-top: 64px; color: #153b3a; }
 
         /* Navbar */
-        .admin-navbar { background: #0e4643; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 3px rgba(21,59,58,0.14); }
+        .admin-navbar { background: #0e4643; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; inset: 0 0 auto; z-index: 50; box-shadow: 0 1px 3px rgba(21,59,58,0.14); }
         .admin-logo-wrap { display: flex; align-items: center; gap: 12px; }
         .admin-logo-box { width: 40px; height: 40px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 5px; box-sizing: border-box; flex-shrink: 0; }
         .admin-logo-box img { width: 100%; height: 100%; object-fit: contain; display: block; }
