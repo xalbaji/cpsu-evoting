@@ -182,11 +182,10 @@ export async function importVoters(
     });
   }
 
-  const rows = parse(req.file.buffer, {
-    columns: true,
+  const parsedRows = parse(req.file.buffer, {
     skip_empty_lines: true,
     trim: true,
-  }) as Record<string, string>[];
+  }) as string[][];
   const requiredColumns = [
     "studentId",
     "firstName",
@@ -195,15 +194,24 @@ export async function importVoters(
     "course",
     "yearLevel",
   ];
-  const columns = Object.keys(rows[0] ?? {});
-  const missingColumns = requiredColumns.filter(
-    (column) => !columns.includes(column),
+  const firstRow = (parsedRows[0] ?? []).map((value) =>
+    value.replace(/^\uFEFF/, "").trim(),
   );
+  const hasHeader = requiredColumns.every((column) => firstRow.includes(column));
+  const rows: Record<string, string>[] = hasHeader
+    ? parsedRows.slice(1).map((values) =>
+        Object.fromEntries(firstRow.map((column, index) => [column, values[index] ?? ""])),
+      )
+    : parsedRows.every((values) => values.length === requiredColumns.length)
+      ? parsedRows.map((values) =>
+          Object.fromEntries(requiredColumns.map((column, index) => [column, values[index] ?? ""])),
+        )
+      : [];
 
-  if (missingColumns.length > 0) {
+  if (rows.length === 0 && parsedRows.length > 0) {
     return res.status(400).json({
       success: false,
-      message: `Missing columns: ${missingColumns.join(", ")}`,
+      message: `CSV must include these columns: ${requiredColumns.join(", ")} or contain exactly six values per row in that order.`,
     });
   }
 
@@ -232,7 +240,7 @@ export async function importVoters(
       seenIds.has(row.studentId) ||
       seenEmails.has(email)
     ) {
-      errors.push(`Row ${index + 2} is invalid or duplicated`);
+      errors.push(`Row ${index + (hasHeader ? 2 : 1)} is invalid or duplicated`);
       return;
     }
     seenIds.add(row.studentId);
