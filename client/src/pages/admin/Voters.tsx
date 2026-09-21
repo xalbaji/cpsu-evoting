@@ -759,31 +759,31 @@ export default function Voters() {
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-4 font-mono text-xs font-semibold text-ink-700" data-label="Student ID">
+                              <td className="px-4 py-4 font-mono text-xs font-semibold text-ink-700">
                                 {voter.studentId}
                               </td>
-                              <td className="px-4 py-4 text-sm text-ink-600" data-label="Course · Year">
+                              <td className="px-4 py-4 text-sm text-ink-600">
                                 {voter.course || "—"}
                                 {voter.yearLevel != null && voter.yearLevel !== "" && (
                                   <span className="text-ink-400"> · Yr {voter.yearLevel}</span>
                                 )}
                               </td>
-                              <td className="px-4 py-4" data-label="Status">
+                              <td className="px-4 py-4">
                                 {voter.isActive
                                   ? <Badge tone="green">Active</Badge>
                                   : <Badge tone="red">Inactive</Badge>}
                               </td>
-                              <td className="px-4 py-4" data-label="Verified">
+                              <td className="px-4 py-4">
                                 {voter.isVerified
                                   ? <Badge tone="brand">✓ Yes</Badge>
                                   : <Badge tone="amber">No</Badge>}
                               </td>
-                              <td className="px-4 py-4" data-label="Voting">
+                              <td className="px-4 py-4">
                                 {voter.hasVoted
                                   ? <Badge tone="green">Voted</Badge>
                                   : <Badge tone="slate">Not yet</Badge>}
                               </td>
-                              <td className="voter-actions-cell px-6 py-4 align-middle" data-label="Actions">
+                              <td className="voter-actions-cell px-6 py-4 align-middle">
                                 <div className="voter-actions">
                                   {hasSuperAdminAccess(user) && (
                                     <button
