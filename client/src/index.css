@@ -560,7 +560,9 @@
     .admin-page > .admin-navbar .admin-brand, .admin-page > header:not(.app-header) .admin-brand { display: none; }
     .admin-page > .admin-navbar .admin-user-name, .admin-page > header:not(.app-header) .admin-user-name { display: none; }
     .admin-page > aside:not(.admin-sidebar), .admin-page > .admin-layout > aside:not(.admin-sidebar), .admin-page .admin-dashboard-sidebar { top: 68px; width: min(86vw, 292px); min-height: calc(100vh - 68px); transform: translateX(-100%); box-shadow: 14px 0 35px rgba(13,36,56,.15); }
-    .admin-page > aside:not(.admin-sidebar).open, .admin-page > .admin-layout > aside:not(.admin-sidebar).open, .admin-page .admin-dashboard-sidebar.translate-x-0 { transform: translateX(0); }
+    /* The drawer opens with either the legacy "open" class or the Tailwind
+       translate-x-0 utility (the same class the dashboard already used). */
+    .admin-page > aside:not(.admin-sidebar).open, .admin-page > aside:not(.admin-sidebar).translate-x-0, .admin-page > .admin-layout > aside:not(.admin-sidebar).open, .admin-page > .admin-layout > aside:not(.admin-sidebar).translate-x-0, .admin-page .admin-dashboard-sidebar.translate-x-0 { transform: translateX(0); }
     .admin-page > .admin-layout > main:not(.admin-main) { width: 100%; padding-left: 0; }
     .admin-page .results-grid { grid-template-columns: 1fr; }
     .admin-sidebar { top: 68px; width: min(86vw, 292px); min-height: calc(100vh - 68px); transform: translateX(-100%); box-shadow: 14px 0 35px rgba(13,36,56,.15); }
@@ -571,6 +573,23 @@
     main > section, main > article, main > form:not(.auth-card) { padding: 18px; }
     main section article { display: block; width: 100%; margin-right: 0; }
     table { display: block; overflow-x: auto; white-space: nowrap; }
+  }
+
+  /* Tablets (Tailwind's lg breakpoint starts at 1024px). The markup shows a
+     hamburger drawer here, so the sidebar must behave like it does on phones
+     instead of leaving a fixed 258px gap beside the content. */
+  @media (min-width: 769px) and (max-width: 1023px) {
+    .admin-page > aside:not(.admin-sidebar),
+    .admin-page > .admin-layout > aside:not(.admin-sidebar),
+    .admin-page .admin-dashboard-sidebar { top: 74px; width: min(68vw, 300px); transform: translateX(-100%); box-shadow: 14px 0 35px rgba(13,36,56,.15); }
+    .admin-page > aside:not(.admin-sidebar).open,
+    .admin-page > aside:not(.admin-sidebar).translate-x-0,
+    .admin-page > .admin-layout > aside:not(.admin-sidebar).open,
+    .admin-page > .admin-layout > aside:not(.admin-sidebar).translate-x-0,
+    .admin-page .admin-dashboard-sidebar.translate-x-0 { transform: translateX(0); }
+    .admin-main,
+    .admin-page > .admin-layout > main:not(.admin-main) { width: 100%; margin-left: 0; padding: 30px clamp(18px, 3.5vw, 40px) 56px; }
+    .app-footer { margin-left: 0; }
   }
 
   @media (max-width: 480px) {
