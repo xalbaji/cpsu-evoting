@@ -1,9 +1,16 @@
 import { Router } from "express";
-import { getAuditLogs } from "../controllers/audit.controller.js";
+import { getAuditLogs, getMyAuditLogs } from "../controllers/audit.controller.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/roles.js";
 
 const router = Router();
+
+router.get(
+  "/mine",
+  requireAuth,
+  requireRole("VOTER"),
+  getMyAuditLogs,
+);
 
 router.get(
   "/",

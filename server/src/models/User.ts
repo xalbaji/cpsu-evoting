@@ -8,11 +8,15 @@ export type UserRole =
 export interface IUser extends Document {
   studentId: string;
   firstName: string;
+  middleInitial?: string;
   lastName: string;
+  suffix?: string;
   email: string;
   passwordHash: string;
   role: UserRole;
   course?: string;
+  managedCourses: string[];
+  isSuperAdmin: boolean;
   yearLevel?: string;
   avatarUrl?: string;
   isActive: boolean;
@@ -43,6 +47,19 @@ const userSchema = new Schema<IUser>(
       trim: true,
     },
 
+    middleInitial: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    suffix: {
+      type: String,
+      trim: true,
+      default: "",
+      enum: ["", "Jr.", "Sr.", "II", "III", "IV", "V"],
+    },
+
     email: {
       type: String,
       required: true,
@@ -64,7 +81,21 @@ const userSchema = new Schema<IUser>(
       default: "VOTER",
     },
 
-    course: String,
+    course: {
+      type: String,
+      uppercase: true,
+      trim: true,
+    },
+
+    managedCourses: {
+      type: [String],
+      default: [],
+    },
+
+    isSuperAdmin: {
+      type: Boolean,
+      default: false,
+    },
 
     yearLevel: String,
 

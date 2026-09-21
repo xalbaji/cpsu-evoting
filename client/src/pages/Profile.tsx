@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SVGProps } from "react";
 
-import { api } from "../api/axios";
-import { useAuth } from "../context/AuthContext";
+import { api } from "../lib/api";
+import { useAuth } from "../lib/auth-context";
+import { CPSU_MAIN_COURSES } from "../lib/courses";
 
 /* ---------------- types ---------------- */
 interface ProfileForm {
   firstName: string;
+  middleInitial: string;
   lastName: string;
+  suffix: string;
   course: string;
   yearLevel: string;
 }
@@ -16,7 +19,9 @@ interface AccountInfo {
   email?: string;
   studentId?: string;
   firstName?: string;
+  middleInitial?: string;
   lastName?: string;
+  suffix?: string;
   course?: string;
   yearLevel?: string | number;
   avatarUrl?: string;
@@ -82,12 +87,14 @@ const initialsOf = (first?: string, last?: string) =>
 const titleCase = (s: string) =>
   s.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
 
-const YEAR_LEVELS = ["1", "2", "3", "4", "5"];
+const YEAR_LEVELS = ["1", "2", "3", "4"];
 
-const COURSE_SUGGESTIONS = [
-  "BSIT", "BSCS", "BSIS", "BSBA", "BSA", "BSAgriculture",
-  "BSForestry", "BSEd", "BEEd", "BSNursing", "BSCriminology",
-];
+const formatYearLevel = (value: string | number) => {
+  const year = String(value ?? "").trim();
+  if (!year) return "";
+  if (/^year\s/i.test(year) || /year$/i.test(year)) return year;
+  return `Year ${year}`;
+};
 
 /* ---------------- page ---------------- */
 export default function Profile() {
@@ -95,7 +102,9 @@ export default function Profile() {
 
   const [form, setForm] = useState<ProfileForm>({
     firstName: user?.firstName ?? "",
+    middleInitial: user?.middleInitial ?? "",
     lastName: user?.lastName ?? "",
+    suffix: user?.suffix ?? "",
     course: user?.course ?? "",
     yearLevel: user?.yearLevel != null ? String(user.yearLevel) : "",
   });
@@ -128,14 +137,16 @@ export default function Profile() {
         setAvatarUrl(me.avatarUrl ?? "");
         const fresh: ProfileForm = {
           firstName: me.firstName ?? form.firstName,
+          middleInitial: me.middleInitial ?? form.middleInitial,
           lastName: me.lastName ?? form.lastName,
+          suffix: me.suffix ?? form.suffix,
           course: me.course ?? form.course,
           yearLevel: me.yearLevel != null ? String(me.yearLevel) : form.yearLevel,
         };
         setForm(fresh);
         setSnapshot(fresh);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     api
       .get("/votes/my-status")
@@ -144,8 +155,7 @@ export default function Profile() {
         setBallotsCast(votes.length);
         setLastVoted(votes[0]?.submittedAt ?? null);
       })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => { });
   }, []);
 
   const set = (key: keyof ProfileForm) => (value: string) =>
@@ -179,11 +189,12 @@ export default function Profile() {
       setError("");
 
       try {
-        // PATCH /users/profile → updateProfile accepts exactly these 4 fields
+        // PATCH /users/profile → updateProfile accepts these profile fields
         const response = await api.patch("/users/profile", {
           firstName: form.firstName.trim(),
+          middleInitial: form.middleInitial.trim().toUpperCase(),
           lastName: form.lastName.trim(),
-          course: form.course.trim(),
+          suffix: form.suffix,
           yearLevel: form.yearLevel,
           avatarUrl,
         });
@@ -192,7 +203,9 @@ export default function Profile() {
         const updated = response.data?.data;
         const saved: ProfileForm = {
           firstName: updated?.firstName ?? form.firstName.trim(),
+          middleInitial: updated?.middleInitial ?? form.middleInitial.trim().toUpperCase(),
           lastName: updated?.lastName ?? form.lastName.trim(),
+          suffix: updated?.suffix ?? form.suffix,
           course: updated?.course ?? form.course.trim(),
           yearLevel: updated?.yearLevel != null ? String(updated.yearLevel) : form.yearLevel,
         };
@@ -220,10 +233,10 @@ export default function Profile() {
   const displayName = `${form.firstName} ${form.lastName}`.trim() || "Your profile";
   const lastVotedLabel = lastVoted
     ? new Date(lastVoted).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
     : "Never";
 
   // make sure the select can display the stored value even if unusual
@@ -266,7 +279,7 @@ export default function Profile() {
           )}
           {form.yearLevel && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-white/20">
-              <GradCapIcon className="h-3.5 w-3.5" /> Year {form.yearLevel}
+              <GradCapIcon className="h-3.5 w-3.5" /> {formatYearLevel(form.yearLevel)}
             </span>
           )}
         </div>
@@ -301,19 +314,19 @@ export default function Profile() {
             <UserIcon className="h-5 w-5 text-brand-600" /> Edit profile
           </h2>
           <p className="mt-1 font-sans text-sm text-ink-500">
-            Keep your details current — some elections are only open to specific courses or year levels.
+            Keep your details current. Your course is managed by the registrar because it determines which elections you can access.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-brand-200 bg-brand-50/70 p-4">
+          <div className="profile-avatar-row mt-6 rounded-2xl border border-brand-200 bg-brand-50/70 p-4">
             <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-brand-200 text-xl font-extrabold text-brand-700 ring-2 ring-white shadow-sm">
               {avatarUrl ? <img src={avatarUrl} alt="Avatar preview" className="h-full w-full object-cover" /> : initialsOf(form.firstName, form.lastName)}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="profile-avatar-copy">
               <p className="font-bold text-brand-900">Profile picture</p>
               <p className="mt-0.5 font-sans text-xs text-ink-500">Use a clear square image. JPG, PNG, or WebP up to 2 MB.</p>
               {avatarError && <p className="mt-1 font-sans text-xs font-semibold text-danger-700">{avatarError}</p>}
             </div>
-            <label className="cursor-pointer rounded-xl bg-brand-500 px-4 py-2.5 font-sans text-sm font-bold text-white shadow-sm transition hover:bg-brand-700">
+            <label className="profile-avatar-action cursor-pointer rounded-xl bg-brand-500 px-4 py-2.5 text-center font-sans text-sm font-bold text-white shadow-sm transition hover:bg-brand-700">
               {avatarUrl ? "Change photo" : "Add photo"}
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarChange} className="sr-only" />
             </label>
@@ -327,15 +340,26 @@ export default function Profile() {
           )}
           {error && <p role="alert" className="mt-5">{error}</p>}
 
-          <form onSubmit={saveProfile} className="mt-6 grid gap-5 sm:grid-cols-2">
+          <form onSubmit={saveProfile} className="profile-form mt-6 grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <label>
               First name
               <input
                 required
                 value={form.firstName}
                 onChange={(e) => set("firstName")(e.target.value)}
-                placeholder="Juan"
+                placeholder="Jimuel"
                 className="mt-1"
+              />
+            </label>
+            <label>
+              Middle initial
+              <input
+                value={form.middleInitial}
+                onChange={(e) => set("middleInitial")(e.target.value)}
+                placeholder="S."
+                maxLength={2}
+                className="mt-1"
+                style={{ textTransform: "uppercase" }}
               />
             </label>
             <label>
@@ -344,24 +368,37 @@ export default function Profile() {
                 required
                 value={form.lastName}
                 onChange={(e) => set("lastName")(e.target.value)}
-                placeholder="Dela Cruz"
+                placeholder="Sapansa"
                 className="mt-1"
               />
             </label>
             <label>
-              Course
-              <input
-                value={form.course}
-                onChange={(e) => set("course")(e.target.value)}
-                list="course-options"
-                placeholder="BSIT"
+              Suffix
+              <select
+                value={form.suffix}
+                onChange={(e) => set("suffix")(e.target.value)}
                 className="mt-1"
-              />
-              <datalist id="course-options">
-                {COURSE_SUGGESTIONS.map((c) => (
-                  <option key={c} value={c} />
+              >
+                <option value="">None</option>
+                <option value="Jr.">Jr. (Junior)</option>
+                <option value="Sr.">Sr. (Senior)</option>
+                <option value="II">II</option>
+                <option value="III">III</option>
+                <option value="IV">IV</option>
+                <option value="V">V</option>
+              </select>
+            </label>
+            <label>
+              Course
+              <select value={form.course} className="mt-1" disabled>
+                <option value="">Course not assigned</option>
+                {CPSU_MAIN_COURSES.map((course) => (
+                  <option key={course.code} value={course.code}>{course.code}</option>
                 ))}
-              </datalist>
+              </select>
+              <span className="profile-course-note mt-1 block font-sans text-xs font-normal normal-case tracking-normal text-ink-400">
+                {CPSU_MAIN_COURSES.find((course) => course.code === form.course)?.name ?? "Course not assigned"}. Contact an administrator if this is incorrect.
+              </span>
             </label>
             <label>
               Year level
@@ -373,21 +410,26 @@ export default function Profile() {
                 <option value="">Select year level…</option>
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
-                    Year {y}
+                    {formatYearLevel(y)}
                   </option>
                 ))}
               </select>
             </label>
 
+            <label className="sm:col-span-2">
+              Initials
+              <input value={[form.firstName, form.middleInitial, form.lastName].filter(Boolean).map((part) => `${part[0].toUpperCase()}.`).join("") || "—"} readOnly className="mt-1" />
+            </label>
+
             {/* action bar */}
-            <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+            <div className="profile-actions flex flex-wrap items-center gap-3 sm:col-span-2">
               {profileDirty && (
                 <span className="inline-flex items-center gap-1.5 font-sans text-xs font-bold text-amber-700">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
                   Unsaved changes
                 </span>
               )}
-              <div className="ml-auto flex gap-3">
+              <div className="profile-actions-group ml-auto flex gap-3">
                 {dirty && (
                   <button
                     type="button"
@@ -440,7 +482,7 @@ export default function Profile() {
             </ul>
             <p className="mt-5 flex items-start gap-2 rounded-xl bg-brand-50 px-3.5 py-3 font-sans text-xs text-ink-600">
               <LockIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
-              Email and student number are managed by the registrar and can't be edited here. Contact your administrator if they're wrong.
+              Student number are managed by the registrar and can't be edited here. Contact your administrator if they're wrong.
             </p>
           </section>
 

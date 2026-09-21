@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { AuditLog } from "../models/AuditLog.js";
+import { AuditAudience, AuditLog } from "../models/AuditLog.js";
 
 interface AuditOptions {
   userId?: string;
@@ -9,6 +9,7 @@ interface AuditOptions {
   description: string;
   ipAddress?: string;
   metadata?: Record<string, unknown>;
+  audience?: AuditAudience;
 }
 
 export async function createAuditLog(
@@ -39,5 +40,8 @@ export async function createAuditLog(
 
     metadata:
       options.metadata,
+
+    audience:
+      options.audience ?? "ADMIN",
   });
 }

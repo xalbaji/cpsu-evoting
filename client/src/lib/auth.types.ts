@@ -11,6 +11,8 @@ export interface User {
   email: string;
   role: UserRole;
   course?: string;
+  managedCourses?: string[];
+  isSuperAdmin?: boolean;
   yearLevel?: string;
   avatarUrl?: string;
   isActive: boolean;

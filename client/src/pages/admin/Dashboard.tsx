@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SVGProps } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { api } from "../../../api/axios";
-import { useAuth } from "../../../context/AuthContext";
-import BrandLogo from "../../../components/BrandLogo";
-import { ThemeSettings } from "../../../components/ThemeSettings";
+import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth-context";
+import BrandLogo from "../../components/BrandLogo";
+import { ThemeSettings } from "../../components/ThemeSettings";
+import { adminRoleLabel, displayAccountName, hasSuperAdminAccess } from "../../lib/access";
 
 /* ---------------- types (matches getAdminDashboard) ---------------- */
 interface Stats {
@@ -14,6 +15,16 @@ interface Stats {
   completedElections: number;
   totalVotes: number;
   voterTurnout: number; // percentage 0–100
+}
+
+interface ElectionSummary {
+  _id: string;
+  title: string;
+  course?: string;
+  courses?: string[];
+  status: string;
+  hasVoted?: boolean;
+  approvalStatus?: "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED";
 }
 
 /* ---------------- count-up hook ---------------- */
@@ -109,9 +120,26 @@ const NAV_ITEMS = [
   { path: "/admin/dashboard", label: "Dashboard", icon: GridIcon },
   { path: "/admin/elections", label: "Elections", icon: ShieldIcon },
   { path: "/admin/voters", label: "Voters", icon: UsersIcon },
+  { path: "/voter/my-votes", label: "My Votes", icon: ReceiptIcon },
+  { path: "/profile", label: "Profile", icon: UsersIcon },
+  { path: "/admin/administrators", label: "Administrators", icon: UsersIcon },
   { path: "/admin/audit-logs", label: "Audit Logs", icon: ScrollIcon },
   { path: "/admin/results", label: "Results", icon: ChartIcon },
 ];
+
+function electionLabel(election: ElectionSummary) {
+  if (election.approvalStatus === "PENDING") return { text: "Pending approval", className: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/25" };
+  if (election.approvalStatus === "REJECTED") return { text: "Changes requested", className: "bg-danger-50 text-danger-700 ring-1 ring-danger-700/20" };
+
+  switch (election.status.toUpperCase()) {
+    case "ACTIVE": return { text: "Active", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/25" };
+    case "SCHEDULED": return { text: "Scheduled", className: "bg-sky-50 text-sky-700 ring-1 ring-sky-600/25" };
+    case "RESULTS_PUBLISHED": return { text: "Results published", className: "bg-brand-50 text-brand-700 ring-1 ring-brand-500/25" };
+    case "CLOSED": return { text: "Closed", className: "bg-slate-100 text-slate-600 ring-1 ring-slate-500/15" };
+    case "CANCELLED": return { text: "Cancelled", className: "bg-danger-50 text-danger-700 ring-1 ring-danger-700/20" };
+    default: return { text: "Draft", className: "bg-slate-100 text-slate-600 ring-1 ring-slate-500/15" };
+  }
+}
 
 /* ---------------- small components ---------------- */
 const toneStyles: Record<string, string> = {
@@ -231,11 +259,12 @@ function Skeleton() {
 
 /* ---------------- page ---------------- */
 export default function AdminDashboard() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [stats, setStats] = useState<Stats | null>(null);
+  const [elections, setElections] = useState<ElectionSummary[]>([]);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [passwordPanelOpen, setPasswordPanelOpen] = useState(false);
@@ -250,8 +279,12 @@ export default function AdminDashboard() {
     setError("");
     try {
       // ✅ your real endpoint
-      const response = await api.get("/admin/dashboard");
-      setStats(response.data.data);
+      const [dashboardResponse, electionsResponse] = await Promise.all([
+        api.get("/admin/dashboard"),
+        api.get("/elections"),
+      ]);
+      setStats(dashboardResponse.data.data);
+      setElections(electionsResponse.data?.data ?? []);
     } catch {
       setError("Unable to load dashboard statistics.");
     }
@@ -310,7 +343,7 @@ export default function AdminDashboard() {
   const activeVotes = stats ? Math.round((turnout / 100) * stats.totalVoters) : 0;
 
   return (
-    <div className="min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
+    <div className="admin-page min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
       {/* ── Navbar ── */}
       <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between gap-4 bg-brand-900 px-4 font-sans text-white shadow-md lg:px-6">
         <div className="flex items-center gap-3">
@@ -335,7 +368,8 @@ export default function AdminDashboard() {
             className="bg-transparent p-0 text-sm font-medium text-brand-300 hover:bg-transparent"
             aria-label="Administrator account"
           >
-            CPSU Administrator
+            {displayAccountName(user, "Course Moderator")}
+            <span className="header-role-badge">{adminRoleLabel(user)}</span>
           </button>
           <button
             onClick={handleLogout}
@@ -389,24 +423,27 @@ export default function AdminDashboard() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <nav className="flex flex-col gap-1 p-4">
-          <p className="mb-3 px-2 font-sans text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-400">
-            Administration
-          </p>
+        <nav className="sidebar-nav">
+          <p className="sidebar-section-label">Administration</p>
+          <div className="sidebar-context">
+            <span className="sidebar-context-dot" />
+            <div>
+              <strong>{adminRoleLabel(user)} workspace</strong>
+              <span>{hasSuperAdminAccess(user) ? "Manage every course" : "Managing assigned course elections"}</span>
+            </div>
+          </div>
           {NAV_ITEMS.map((item) => {
+            if (item.path === "/admin/administrators" && !hasSuperAdminAccess(user)) return null;
+            if (["/profile", "/voter/my-votes"].includes(item.path) && hasSuperAdminAccess(user)) return null;
             const Icon = item.icon;
             const active = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 font-sans text-sm transition ${
-                  active
-                    ? "bg-brand-100 font-bold text-brand-700"
-                    : "font-medium text-ink-600 hover:bg-brand-50 hover:text-brand-700"
-                }`}
+                className={`sidebar-link ${active ? "active" : ""}`}
               >
-                <Icon className="h-[18px] w-[18px]" />
+                <span className="sidebar-icon"><Icon /></span>
                 {item.label}
               </Link>
             );
@@ -561,6 +598,59 @@ export default function AdminDashboard() {
                     />
                   </div>
                 </div>
+              </section>
+
+              <section className="animate-fade-up rounded-2xl border border-brand-200 bg-white/90 p-6 shadow-sm sm:p-8" style={{ animationDelay: "560ms" }}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-brand-900">Election overview</h2>
+                    <p className="mt-1 font-sans text-sm text-ink-500">All elections available in your administrator scope.</p>
+                  </div>
+                  <Link to="/admin/elections" className="inline-flex items-center gap-1.5 font-sans text-sm font-bold text-brand-600 hover:underline">
+                    Manage elections <ArrowIcon className="h-4 w-4" />
+                  </Link>
+                </div>
+
+                {elections.length === 0 ? (
+                  <div className="mt-5 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50/60 p-6 text-center font-sans text-sm text-ink-500">
+                    No elections have been created in your scope yet.
+                  </div>
+                ) : (
+                  <div className="mt-5 grid gap-3 md:grid-cols-2">
+                    {elections.slice(0, 6).map((election) => {
+                      const status = electionLabel(election);
+                      const courses = election.courses?.length ? election.courses : election.course ? [election.course] : [];
+                      const publicElection = ["ACTIVE", "CLOSED", "RESULTS_PUBLISHED"].includes(election.status.toUpperCase());
+                      const moderatorCanVote = election.status.toUpperCase() === "ACTIVE"
+                        && Boolean(user?.course)
+                        && courses.some((course) => course.toUpperCase() === user?.course?.toUpperCase());
+                      return (
+                        <article key={election._id} className="rounded-xl border border-brand-200 bg-brand-50/50 p-4 transition hover:border-brand-500/40 hover:shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="truncate font-bold text-brand-900">{election.title}</h3>
+                              {courses.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{courses.map((course) => <span key={course} className="admin-course-chip">{course}</span>)}</div>}
+                            </div>
+                            <span className={`shrink-0 rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ${status.className}`}>{status.text}</span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-3 font-sans text-xs text-ink-500">
+                            <span>{election.approvalStatus === "PENDING" ? "Waiting for Super Admin review" : "Election record"}</span>
+                            {moderatorCanVote && !election.hasVoted ? (
+                              <Link to={`/voter/elections/${election._id}/vote`} className="font-bold text-brand-600 hover:underline">Vote now</Link>
+                            ) : moderatorCanVote && election.hasVoted ? (
+                              <span className="font-bold text-emerald-700">Voted</span>
+                            ) : publicElection ? (
+                              <Link to={`/voter/elections/${election._id}/results`} className="font-bold text-brand-600 hover:underline">View details</Link>
+                            ) : (
+                              <Link to="/admin/elections" className="font-bold text-brand-600 hover:underline">Open manager</Link>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+                {elections.length > 6 && <p className="mt-4 text-center font-sans text-xs text-ink-500">Showing 6 of {elections.length} elections. Open Manage elections to see the complete list.</p>}
               </section>
 
               {/* Footer note */}

@@ -3,10 +3,13 @@ import { Fragment } from "react";
 import type { SVGProps } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { api } from "../../api/axios";
-import { useAuth } from "../../context/AuthContext";
+import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth-context";
 import BrandLogo from "../../components/BrandLogo";
 import { ThemeSettings } from "../../components/ThemeSettings";
+import { CPSU_MAIN_COURSES } from "../../lib/courses";
+import { hasSuperAdminAccess } from "../../lib/access";
+import { adminRoleLabel, displayAccountName } from "../../lib/access";
 
 /* ---------------- types (matches getUsers) ---------------- */
 interface Voter {
@@ -85,6 +88,11 @@ const TrashIcon = (p: Icon) => (
     <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M10 11v6M14 11v6" />
   </svg>
 );
+const PencilIcon = (p: Icon) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+  </svg>
+);
 const CheckIcon = (p: Icon) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" {...p}>
     <path d="m5 13 4 4L19 7" />
@@ -126,6 +134,9 @@ const NAV_ITEMS = [
   { path: "/admin/dashboard", label: "Dashboard", icon: GridIcon },
   { path: "/admin/elections", label: "Elections", icon: ShieldIcon },
   { path: "/admin/voters", label: "Voters", icon: UsersIcon },
+  { path: "/voter/my-votes", label: "My Votes", icon: ReceiptIcon },
+  { path: "/profile", label: "Profile", icon: UsersIcon },
+  { path: "/admin/administrators", label: "Administrators", icon: UserPlusIcon },
   { path: "/admin/audit-logs", label: "Audit Logs", icon: ScrollIcon },
   { path: "/admin/results", label: "Results", icon: ChartIcon },
 ];
@@ -199,7 +210,7 @@ function Skeleton() {
 const PAGE_SIZE = 10;
 
 export default function Voters() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -213,8 +224,11 @@ export default function Voters() {
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [editingVoter, setEditingVoter] = useState<Voter | null>(null);
   const [editStudentId, setEditStudentId] = useState("");
+  const [editCourse, setEditCourse] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const [promotingVoter, setPromotingVoter] = useState<Voter | null>(null);
+  const [promotionCourses, setPromotionCourses] = useState<string[]>([]);
 
   // CSV import
   const fileRef = useRef<HTMLInputElement>(null);
@@ -275,12 +289,14 @@ export default function Voters() {
   const beginEdit = (voter: Voter) => {
     setEditingVoter(voter);
     setEditStudentId(voter.studentId);
+    setEditCourse(voter.course ?? "");
     setNewPassword("");
   };
 
   const cancelEdit = () => {
     setEditingVoter(null);
     setEditStudentId("");
+    setEditCourse("");
     setNewPassword("");
   };
 
@@ -294,8 +310,9 @@ export default function Voters() {
 
     setEditSaving(true);
     try {
-      const payload: { studentId: string; newPassword?: string } = {
+      const payload: { studentId: string; course: string; newPassword?: string } = {
         studentId: editStudentId.trim(),
+        course: editCourse,
       };
       if (newPassword) payload.newPassword = newPassword;
       await api.patch(`/users/${editingVoter._id}`, payload);
@@ -306,6 +323,51 @@ export default function Voters() {
       window.alert(err?.response?.data?.message ?? "Unable to update the account.");
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const openPromotion = (voter: Voter) => {
+    if (!voter.course) {
+      window.alert("Assign this voter a course before promoting them to a Course Moderator.");
+      return;
+    }
+
+    setPromotingVoter(voter);
+    setPromotionCourses([]);
+  };
+
+  const closePromotion = () => {
+    if (rowBusy) return;
+    setPromotingVoter(null);
+    setPromotionCourses([]);
+  };
+
+  const togglePromotionCourse = (courseCode: string) => {
+    setPromotionCourses((current) => current.includes(courseCode)
+      ? current.filter((course) => course !== courseCode)
+      : [...current, courseCode]);
+  };
+
+  const promoteToAdmin = async () => {
+    const voter = promotingVoter;
+    if (!voter) return;
+    const courses = Array.from(new Set(promotionCourses));
+
+    if (!window.confirm(
+      `Promote ${voter.firstName} ${voter.lastName} to Course Moderator?\n\nThey will be able to manage: ${courses.join(", ")}.`,
+    )) return;
+
+    setRowBusy(voter._id);
+    try {
+      await api.post(`/users/admins/${voter._id}/promote`, { managedCourses: courses });
+      await load();
+      flash(`${voter.firstName} ${voter.lastName} is now a Course Moderator for ${courses.join(", ")}.`);
+      setPromotingVoter(null);
+      setPromotionCourses([]);
+    } catch (err: any) {
+      window.alert(err?.response?.data?.message ?? "Unable to promote the voter.");
+    } finally {
+      setRowBusy(null);
     }
   };
 
@@ -383,9 +445,14 @@ export default function Voters() {
   const votedOnPage = (voters ?? []).filter((v) => v.hasVoted).length;
   const unverifiedOnPage = (voters ?? []).filter((v) => !v.isVerified).length;
   const inactiveOnPage = (voters ?? []).filter((v) => !v.isActive).length;
+  const coursesByCollege = CPSU_MAIN_COURSES.reduce<Record<string, typeof CPSU_MAIN_COURSES>>((groups, course) => {
+    (groups[course.college] ??= []).push(course);
+    return groups;
+  }, {});
+  const allPromotionCoursesSelected = promotionCourses.length === CPSU_MAIN_COURSES.length;
 
   return (
-    <div className="min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
+    <div className="admin-page min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
       {/* ── Navbar ── */}
       <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between gap-4 bg-brand-900 px-4 font-sans text-white shadow-md lg:px-6">
         <div className="flex items-center gap-3">
@@ -402,7 +469,8 @@ export default function Voters() {
           <span className="hidden text-[1.05rem] font-semibold tracking-wide sm:block">CPSU E-Voting</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-brand-300">CPSU Administrator</span>
+          <span className="text-sm font-medium text-brand-300">{displayAccountName(user, "Course Moderator")}</span>
+          <span className="header-role-badge">{adminRoleLabel(user)}</span>
           <button
             onClick={handleLogout}
             className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold transition hover:bg-white/20 active:scale-95"
@@ -421,24 +489,27 @@ export default function Voters() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <nav className="flex flex-col gap-1 p-4">
-          <p className="mb-3 px-2 font-sans text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-400">
-            Administration
-          </p>
+        <nav className="sidebar-nav">
+          <p className="sidebar-section-label">Administration</p>
+          <div className="sidebar-context">
+            <span className="sidebar-context-dot" />
+            <div>
+              <strong>{adminRoleLabel(user)} workspace</strong>
+              <span>{hasSuperAdminAccess(user) ? "Manage every course" : "Managing assigned course elections"}</span>
+            </div>
+          </div>
           {NAV_ITEMS.map((item) => {
+            if (item.path === "/admin/administrators" && !hasSuperAdminAccess(user)) return null;
+            if (["/profile", "/voter/my-votes"].includes(item.path) && hasSuperAdminAccess(user)) return null;
             const Icon = item.icon;
             const active = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 font-sans text-sm transition ${
-                  active
-                    ? "bg-brand-100 font-bold text-brand-700"
-                    : "font-medium text-ink-600 hover:bg-brand-50 hover:text-brand-700"
-                }`}
+                className={`sidebar-link ${active ? "active" : ""}`}
               >
-                <Icon className="h-[18px] w-[18px]" />
+                <span className="sidebar-icon"><Icon /></span>
                 {item.label}
               </Link>
             );
@@ -455,11 +526,69 @@ export default function Voters() {
               <p role="alert" className="font-sans font-semibold text-danger-700">{error}</p>
               <button onClick={() => load()} className="mt-4 active:scale-95">Try again</button>
             </div>
-          ) : !voters ? (
-            <Skeleton />
-          ) : (
-            <div className="space-y-6">
-              {/* Hero */}
+           ) : !voters ? (
+             <Skeleton />
+           ) : (
+             <div className="space-y-6">
+               {promotingVoter && (
+                 <div className="moderator-promotion-overlay" role="presentation">
+                   <section className="moderator-promotion-modal" role="dialog" aria-modal="true" aria-labelledby="moderator-promotion-title">
+                     <div className="moderator-promotion-header">
+                       <div>
+                         <p className="moderator-promotion-kicker">Course moderator access</p>
+                         <h2 id="moderator-promotion-title">Choose courses to manage</h2>
+                         <p>{promotingVoter.firstName} {promotingVoter.lastName} can manage voters and elections for the courses selected below.</p>
+                       </div>
+                       <button type="button" className="moderator-promotion-close" onClick={closePromotion} disabled={Boolean(rowBusy)} aria-label="Close course selection">×</button>
+                     </div>
+
+                     <div className="moderator-promotion-summary">
+                       <span>{promotionCourses.length} of {CPSU_MAIN_COURSES.length} courses selected</span>
+                       <button
+                         type="button"
+                         onClick={() => setPromotionCourses(allPromotionCoursesSelected ? [] : CPSU_MAIN_COURSES.map((course) => course.code))}
+                       >
+                         {allPromotionCoursesSelected ? "Clear extras" : "Select all courses"}
+                       </button>
+                     </div>
+
+                     <div className="moderator-promotion-picker">
+                       {Object.entries(coursesByCollege).map(([college, courses]) => (
+                         <fieldset key={college} className="moderator-promotion-group">
+                           <legend>{college}</legend>
+                           <div className="moderator-promotion-options">
+                             {courses.map((course) => {
+                               const selected = promotionCourses.includes(course.code);
+                               return (
+                                 <label key={course.code} className={`moderator-promotion-option ${selected ? "is-selected" : ""}`}>
+                                   <input
+                                     type="checkbox"
+                                     checked={selected}
+                                     onChange={() => togglePromotionCourse(course.code)}
+                                   />
+                                   <span className="moderator-promotion-option-copy">
+                                     <strong>{course.code}</strong>
+                                     <small>{course.name}</small>
+                                   </span>
+                                 </label>
+                               );
+                             })}
+                           </div>
+                         </fieldset>
+                       ))}
+                     </div>
+
+                     <div className="moderator-promotion-actions">
+                       <button type="button" className="moderator-promotion-cancel" onClick={closePromotion} disabled={Boolean(rowBusy)}>Cancel</button>
+                       <button type="button" onClick={promoteToAdmin} disabled={Boolean(rowBusy) || promotionCourses.length === 0}>
+                         {rowBusy ? "Promoting…" : "Promote moderator"}
+                       </button>
+                     </div>
+                   </section>
+                 </div>
+               )}
+
+               {/* Hero */}
               <section className="animate-fade-up relative overflow-hidden rounded-3xl bg-linear-to-br from-brand-900 via-brand-800 to-brand-700 p-8 text-white shadow-xl">
                 <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brand-400/20 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
@@ -601,7 +730,7 @@ export default function Voters() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px] border-collapse text-left font-sans">
+                    <table className="voters-table w-full min-w-[1040px] border-collapse text-left font-sans">
                       <thead>
                         <tr className="bg-brand-50/80 text-xs uppercase tracking-wide text-ink-500">
                           <th className="px-6 py-3.5 font-bold">Voter</th>
@@ -654,41 +783,44 @@ export default function Voters() {
                                   ? <Badge tone="green">Voted</Badge>
                                   : <Badge tone="slate">Not yet</Badge>}
                               </td>
-                              <td className="px-6 py-4">
-                                <div className="flex justify-end gap-2">
+                              <td className="voter-actions-cell px-6 py-4 align-middle">
+                                <div className="voter-actions">
+                                  {hasSuperAdminAccess(user) && (
+                                    <button
+                                       onClick={() => openPromotion(voter)}
+                                      disabled={busy}
+                                      className="voter-action voter-action-primary active:scale-95"
+                                    >
+                                      <UserPlusIcon className="h-3.5 w-3.5" />
+                                      Promote moderator
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => beginEdit(voter)}
                                     disabled={busy}
-                                    className="!bg-white !px-3 !py-1.5 !text-xs !text-brand-700 ring-1 ring-brand-300 hover:!bg-brand-50 active:scale-95"
+                                    className="voter-action voter-action-edit active:scale-95"
                                   >
+                                    <PencilIcon className="h-3.5 w-3.5" />
                                     Edit account
                                   </button>
                                   <button
                                     onClick={() => toggleField(voter, "isActive")}
                                     disabled={busy}
-                                    className={`!px-3 !py-1.5 !text-xs active:scale-95 ${
-                                      voter.isActive
-                                        ? "!bg-white !text-ink-700 ring-1 ring-brand-300 hover:!bg-brand-50"
-                                        : ""
-                                    }`}
+                                    className={`voter-action active:scale-95 ${voter.isActive ? "voter-action-neutral" : "voter-action-success"}`}
                                   >
                                     {voter.isActive ? "Deactivate" : "Activate"}
                                   </button>
                                   <button
                                     onClick={() => toggleField(voter, "isVerified")}
                                     disabled={busy}
-                                    className={`!px-3 !py-1.5 !text-xs active:scale-95 ${
-                                      voter.isVerified
-                                        ? "!bg-white !text-ink-700 ring-1 ring-brand-300 hover:!bg-brand-50"
-                                        : ""
-                                    }`}
+                                    className={`voter-action active:scale-95 ${voter.isVerified ? "voter-action-neutral" : "voter-action-success"}`}
                                   >
                                     {voter.isVerified ? "Unverify" : "Verify"}
                                   </button>
                                   <button
                                     onClick={() => remove(voter)}
                                     disabled={busy}
-                                    className="!bg-white !px-2.5 !py-1.5 !text-danger-700 ring-1 ring-danger-700/30 hover:!bg-danger-50 active:scale-95"
+                                    className="voter-action voter-action-danger active:scale-95"
                                     aria-label={`Delete ${voter.firstName}`}
                                     title="Delete voter"
                                   >
@@ -698,9 +830,17 @@ export default function Voters() {
                               </td>
                             </tr>
                             {editingVoter?._id === voter._id && (
-                              <tr key={`${voter._id}-edit`} className="bg-brand-50/60">
-                                <td colSpan={7} className="px-6 py-5">
-                                  <form onSubmit={saveAccount} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+                              <tr key={`${voter._id}-edit`} className="voter-edit-row bg-brand-50/60">
+                                <td colSpan={7} className="voter-edit-cell px-6 py-5">
+                                  <div className="voter-edit-panel">
+                                    <div className="voter-edit-heading">
+                                      <div>
+                                        <p className="m-0 font-sans text-sm font-bold text-brand-900">Edit voter account</p>
+                                        <p className="m-0 mt-1 font-sans text-xs text-ink-500">Update the student ID or reset the account password for {voter.firstName} {voter.lastName}.</p>
+                                      </div>
+                                      <span className="voter-edit-badge">Account settings</span>
+                                    </div>
+                                     <form onSubmit={saveAccount} className="voter-edit-form grid gap-4 sm:grid-cols-[1fr_1fr_1fr_auto_auto] sm:items-end">
                                     <label>
                                       Student ID
                                       <input
@@ -709,8 +849,17 @@ export default function Voters() {
                                         onChange={(event) => setEditStudentId(event.target.value)}
                                         className="mt-1"
                                       />
-                                    </label>
-                                    <label>
+                                     </label>
+                                     <label>
+                                       Course / program
+                                       <select required value={editCourse} onChange={(event) => setEditCourse(event.target.value)} className="mt-1">
+                                         <option value="">Select a course</option>
+                                         {CPSU_MAIN_COURSES.map((course) => (
+                                           <option key={course.code} value={course.code}>{course.code}</option>
+                                         ))}
+                                       </select>
+                                     </label>
+                                     <label>
                                       New password
                                       <input
                                         type="password"
@@ -721,13 +870,14 @@ export default function Voters() {
                                         className="mt-1"
                                       />
                                     </label>
-                                    <button type="submit" disabled={editSaving} className="!py-2.5 active:scale-95">
+                                    <button type="submit" disabled={editSaving} className="voter-action voter-action-primary active:scale-95">
                                       {editSaving ? "Saving…" : "Save changes"}
                                     </button>
-                                    <button type="button" onClick={cancelEdit} disabled={editSaving} className="!bg-white !py-2.5 !text-ink-700 ring-1 ring-brand-300 hover:!bg-brand-50">
+                                    <button type="button" onClick={cancelEdit} disabled={editSaving} className="voter-action voter-action-neutral active:scale-95">
                                       Cancel
                                     </button>
-                                  </form>
+                                    </form>
+                                  </div>
                                   <p className="mt-3 font-sans text-xs text-ink-500">
                                     Passwords are write-only. The current password cannot be viewed by administrators.
                                   </p>

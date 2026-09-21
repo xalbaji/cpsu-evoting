@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { SVGProps } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { api } from "../../api/axios";
+import { api } from "../../lib/api";
 
 /* ---------------- types (matches getBallot) ---------------- */
 interface Candidate {
@@ -268,6 +268,12 @@ export default function VotingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [alreadyVoted, setAlreadyVoted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -320,10 +326,9 @@ export default function VotingPage() {
     setSelections((current) => ({ ...current, [positionId]: [] }));
   }
 
-  /* identical review contract — ReviewVote.tsx untouched */
   function reviewVote() {
     navigate(`/voter/elections/${id}/review`, {
-      state: { selections, positions },
+      state: { election, selections, positions },
     });
   }
 
@@ -379,6 +384,25 @@ export default function VotingPage() {
     );
   }
 
+  const votingEnded = Boolean(
+    election?.endDate && currentTime >= new Date(election.endDate).getTime(),
+  );
+
+  if (votingEnded) {
+    return (
+      <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
+        <BallotIcon className="mx-auto h-12 w-12 text-amber-700" />
+        <h1 className="mt-4 text-xl font-extrabold text-ink-900">Voting has ended</h1>
+        <p className="mt-2 font-sans text-sm text-ink-600">
+          The scheduled closing time for this election has passed. No more votes can be submitted.
+        </p>
+        <Link to="/voter/dashboard" className="mt-5 inline-flex items-center gap-1.5 font-sans text-sm font-bold text-brand-600 hover:underline">
+          <ArrowLeftIcon className="h-4 w-4" /> Back to dashboard
+        </Link>
+      </div>
+    );
+  }
+
   if (positions.length === 0) {
     return (
       <div className="animate-fade-up rounded-2xl border-2 border-dashed border-brand-200 bg-white/60 p-14 text-center">
@@ -430,7 +454,7 @@ export default function VotingPage() {
       </section>
 
       {/* Sticky progress + position nav */}
-      <div className="rounded-2xl border border-brand-200 bg-white/95 p-4 shadow-sm sm:sticky sm:top-[68px] sm:z-20">
+      <div className="voting-progress-panel rounded-2xl border border-brand-200 bg-white/95 p-4 shadow-sm sm:sticky sm:top-[68px] sm:z-20">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3 font-sans text-xs font-bold">

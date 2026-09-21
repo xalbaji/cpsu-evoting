@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode, SVGProps } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { api } from "../../api/axios";
-import { useAuth } from "../../context/AuthContext";
+import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth-context";
 import BrandLogo from "../../components/BrandLogo";
 import { ThemeSettings } from "../../components/ThemeSettings";
+import { adminRoleLabel, displayAccountName, hasSuperAdminAccess } from "../../lib/access";
 
 /* ---------------- types (matches getAuditLogs) ---------------- */
 interface AuditActor {
@@ -45,12 +46,14 @@ const fmtFull = (d: string) =>
   });
 
 function TimeAgo({ date }: { date: string }) {
-  const [, force] = useState(0);
+  const [now, setNow] = useState(0);
   useEffect(() => {
-    const t = window.setInterval(() => force((n) => n + 1), 30_000);
+    const update = () => setNow(Date.now());
+    update();
+    const t = window.setInterval(update, 30_000);
     return () => window.clearInterval(t);
   }, []);
-  const seconds = Math.max(0, (Date.now() - new Date(date).getTime()) / 1000);
+  const seconds = now === 0 ? 0 : Math.max(0, (now - new Date(date).getTime()) / 1000);
   const label =
     seconds < 60 ? "just now"
     : seconds < 3600 ? `${Math.floor(seconds / 60)}m ago`
@@ -163,6 +166,9 @@ const NAV_ITEMS = [
   { path: "/admin/dashboard", label: "Dashboard", icon: GridIcon },
   { path: "/admin/elections", label: "Elections", icon: ShieldIcon },
   { path: "/admin/voters", label: "Voters", icon: UsersIcon },
+  { path: "/voter/my-votes", label: "My Votes", icon: ReceiptIcon },
+  { path: "/profile", label: "Profile", icon: UsersIcon },
+  { path: "/admin/administrators", label: "Administrators", icon: UsersIcon },
   { path: "/admin/audit-logs", label: "Audit Logs", icon: ScrollIcon },
   { path: "/admin/results", label: "Results", icon: ChartIcon },
 ];
@@ -250,9 +256,10 @@ function Skeleton() {
 
 /* ---------------- page ---------------- */
 export default function AuditLogs() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isSystemAudit = hasSuperAdminAccess(user);
 
   const [logs, setLogs] = useState<AuditLog[] | null>(null);
   const [search, setSearch] = useState("");          // committed
@@ -330,7 +337,7 @@ export default function AuditLogs() {
       : (logs ?? []).filter((l) => actionTone(l.action) === key).length;
 
   return (
-    <div className="min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
+    <div className="admin-page min-h-screen bg-brand-50 pt-16 font-serif text-ink-900">
       {/* ── Navbar ── */}
       <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between gap-4 bg-brand-900 px-4 font-sans text-white shadow-md lg:px-6">
         <div className="flex items-center gap-3">
@@ -347,7 +354,8 @@ export default function AuditLogs() {
           <span className="hidden text-[1.05rem] font-semibold tracking-wide sm:block">CPSU E-Voting</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-brand-300">CPSU Administrator</span>
+          <span className="text-sm font-medium text-brand-300">{displayAccountName(user, "Course Moderator")}</span>
+          <span className="header-role-badge">{adminRoleLabel(user)}</span>
           <button
             onClick={handleLogout}
             className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold transition hover:bg-white/20 active:scale-95"
@@ -366,25 +374,28 @@ export default function AuditLogs() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <nav className="flex flex-col gap-1 p-4">
-          <p className="mb-3 px-2 font-sans text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-400">
-            Administration
-          </p>
+        <nav className="sidebar-nav">
+          <p className="sidebar-section-label">Administration</p>
+          <div className="sidebar-context">
+            <span className="sidebar-context-dot" />
+            <div>
+              <strong>{adminRoleLabel(user)} workspace</strong>
+              <span>{hasSuperAdminAccess(user) ? "Manage every course" : "Managing assigned course elections"}</span>
+            </div>
+          </div>
           {NAV_ITEMS.map((item) => {
+            if (item.path === "/admin/administrators" && !hasSuperAdminAccess(user)) return null;
+            if (["/profile", "/voter/my-votes"].includes(item.path) && hasSuperAdminAccess(user)) return null;
             const Icon = item.icon;
             const active = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 font-sans text-sm transition ${
-                  active
-                    ? "bg-brand-100 font-bold text-brand-700"
-                    : "font-medium text-ink-600 hover:bg-brand-50 hover:text-brand-700"
-                }`}
+                className={`sidebar-link ${active ? "active" : ""}`}
               >
-                <Icon className="h-[18px] w-[18px]" />
-                {item.label}
+                <span className="sidebar-icon"><Icon /></span>
+                {item.path === "/admin/audit-logs" && !isSystemAudit ? "My Audit Logs" : item.label}
               </Link>
             );
           })}
@@ -410,13 +421,15 @@ export default function AuditLogs() {
                 <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
 
                 <p className="font-sans text-xs font-bold uppercase tracking-[0.2em] text-brand-300">
-                  Track administrative actions and system activity
+                  {isSystemAudit ? "System-wide administrative activity" : "Your course moderator activity"}
                 </p>
-                <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Audit Logs</h1>
+                <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{isSystemAudit ? "Super Admin Audit Logs" : "My Moderator Audit Logs"}</h1>
                 <p className="mt-3 max-w-xl font-sans text-brand-100/90">
                   {total > 0
                     ? `${total.toLocaleString()} ${total === 1 ? "event" : "events"} on record${atCap ? " (showing the 200 most recent)" : ""}. Every create, update, publish, and delete is permanently recorded — entries cannot be edited or removed.`
-                    : "Administrative actions will be recorded here automatically as they happen."}
+                    : isSystemAudit
+                      ? "System administrative actions will be recorded here automatically as they happen."
+                      : "Your course moderator actions will be recorded here automatically as they happen."}
                 </p>
               </section>
 
@@ -485,7 +498,7 @@ export default function AuditLogs() {
               <section className="animate-fade-up rounded-2xl border border-brand-200 bg-white/90 p-6 shadow-sm sm:p-8">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-bold text-brand-900">
-                    {search ? `Results for “${search}”` : "Activity Log"}
+                    {search ? `Results for “${search}”` : isSystemAudit ? "System Activity Log" : "My Activity Log"}
                   </h2>
                   <span className="rounded-full bg-brand-100 px-2.5 py-0.5 font-sans text-xs font-bold text-brand-700">
                     {filtered.length}

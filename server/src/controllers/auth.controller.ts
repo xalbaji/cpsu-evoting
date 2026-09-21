@@ -8,6 +8,8 @@ import {
   changePasswordSchema,
 } from "../validators/auth.validator.js";
 import { AuthRequest } from "../middleware/auth.js";
+import { normalizeCourse } from "../constants/courses.js";
+import { isSuperAdmin } from "../utils/courseAccess.js";
 
 export async function register(
   req: Request,
@@ -29,7 +31,9 @@ export async function register(
     const {
       studentId,
       firstName,
+      middleInitial,
       lastName,
+      suffix,
       email,
       password,
       course,
@@ -59,10 +63,12 @@ export async function register(
     const user = await User.create({
       studentId,
       firstName,
+      middleInitial: middleInitial ? middleInitial.toUpperCase() : "",
       lastName,
+      suffix: suffix ?? "",
       email: email.toLowerCase(),
       passwordHash,
-      course,
+      course: normalizeCourse(course),
       yearLevel,
       role: "VOTER",
       isActive: true,
@@ -73,7 +79,8 @@ export async function register(
       success: true,
       message: "Registration successful",
       data: {
-        id: user._id,
+        _id: user._id.toString(),
+        id: user._id.toString(),
         studentId: user.studentId,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -103,7 +110,9 @@ export async function login(
   res: Response,
 ) {
   try {
-    const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER;
+    const isProduction =
+      process.env.NODE_ENV === "production" ||
+      Boolean(process.env.RENDER);
 
     const parsed = loginSchema.safeParse(
       req.body,
@@ -154,19 +163,24 @@ export async function login(
     });
 
     res.cookie("token", token, {
-  httpOnly: true,
-  secure: true, // Must be true on Render (HTTPS)
-  sameSite: "none", // Required for cross-site cookies between Vercel and Render
-  maxAge: 24 * 60 * 60 * 1000, // 1 day
-});
+      httpOnly: true,
+      // Local development runs over HTTP, while hosted deployments run over
+      // HTTPS and need a cross-site cookie for the separate client/server apps.
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
 
     return res.json({
       success: true,
       message: "Login successful",
       data: {
-        id: user._id,
+        _id: user._id.toString(),
+        id: user._id.toString(),
         firstName: user.firstName,
+        middleInitial: user.middleInitial,
         lastName: user.lastName,
+        suffix: user.suffix,
         email: user.email,
         role: user.role,
         course: user.course,
@@ -174,6 +188,8 @@ export async function login(
         avatarUrl: user.avatarUrl,
         isActive: user.isActive,
         isVerified: user.isVerified,
+        managedCourses: user.managedCourses,
+        isSuperAdmin: isSuperAdmin(user),
       },
     });
   } catch (error) {
@@ -190,10 +206,14 @@ export async function logout(
   _req: Request,
   res: Response,
 ) {
-  res.clearCookie("accessToken", {
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.RENDER);
+
+  res.clearCookie("token", {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
   });
 
   return res.json({

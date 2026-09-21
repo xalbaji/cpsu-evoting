@@ -10,6 +10,9 @@ import {
   scheduleElection,
   cancelElection,
   deleteElection,
+  requestElectionApproval,
+  approveElection,
+  rejectElection,
 } from "../controllers/election.controller.js";
 import { getResults } from "../controllers/result.controller.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -41,6 +44,27 @@ router.post(
   requireAuth,
   requireRole("ADMIN"),
   openElection,
+);
+
+router.post(
+  "/:id/request-approval",
+  requireAuth,
+  requireRole("ADMIN"),
+  requestElectionApproval,
+);
+
+router.post(
+  "/:id/approve",
+  requireAuth,
+  requireRole("ADMIN"),
+  approveElection,
+);
+
+router.post(
+  "/:id/reject",
+  requireAuth,
+  requireRole("ADMIN"),
+  rejectElection,
 );
 
 router.post(

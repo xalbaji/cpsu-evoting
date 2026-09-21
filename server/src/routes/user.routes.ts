@@ -8,6 +8,10 @@ import {
   deleteUser,
   importVoters,
   updateProfile,
+  getAdmins,
+  updateAdminScope,
+  promoteUserToAdmin,
+  demoteAdminToVoter,
 } from "../controllers/user.controller.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/roles.js";
@@ -25,6 +29,11 @@ router.get(
 );
 
 router.patch("/profile", requireAuth, updateProfile);
+
+router.get("/admins", requireAuth, requireRole("ADMIN"), getAdmins);
+router.patch("/admins/:id/scope", requireAuth, requireRole("ADMIN"), updateAdminScope);
+router.post("/admins/:id/promote", requireAuth, requireRole("ADMIN"), promoteUserToAdmin);
+router.post("/admins/:id/demote", requireAuth, requireRole("ADMIN"), demoteAdminToVoter);
 
 router.get(
   "/",

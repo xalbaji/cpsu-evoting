@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { api } from "../../api/axios";
+import { api } from "../../lib/api";
 
 interface CandidateResult {
   candidate: {
@@ -25,11 +25,31 @@ interface PositionResult {
   position: { _id: string; name: string };
   candidates: CandidateResult[];
   winner: CandidateResult | null;
+  isTie?: boolean;
+}
+
+interface CourseVoterSummary {
+  course: string;
+  registeredVoters: number;
+  votedVoters: number;
+  remainingVoters: number;
+  turnoutPercentage: number;
 }
 
 interface ResultsData {
   election: { title: string; status: string };
   totalVotes: number;
+  submittedBallotCount?: number;
+  voterSummary?: {
+    courses: CourseVoterSummary[];
+    totalRegisteredVoters: number;
+    totalVotedVoters: number;
+    remainingVoters: number;
+    turnoutPercentage: number;
+    ballotCountMatchesVoterCount: boolean;
+    allRegisteredVotersVoted: boolean;
+    excludedBallotCount?: number;
+  };
   results: PositionResult[];
 }
 
@@ -67,6 +87,17 @@ export default function Results() {
       return () => clearInterval(interval);
     }
   }, [id, data?.election?.status]);
+
+  const voterSummary = data?.voterSummary;
+  const reconciliationComplete = Boolean(
+    voterSummary
+    && voterSummary.totalRegisteredVoters > 0
+    && voterSummary.allRegisteredVotersVoted
+    && voterSummary.ballotCountMatchesVoterCount,
+  );
+  const submittedBallotCount = data?.submittedBallotCount ?? data?.totalVotes ?? 0;
+  const excludedBallotCount = voterSummary?.excludedBallotCount
+    ?? Math.max(submittedBallotCount - (data?.totalVotes ?? 0), 0);
 
   if (error) {
     return (
@@ -194,6 +225,138 @@ export default function Results() {
           margin-top: 4px; 
         }
 
+        .voter-participation-card {
+          background: #ffffff;
+          border: 1px solid #deece9;
+          border-radius: 16px;
+          padding: 24px;
+          box-shadow: 0 10px 26px rgba(21,59,58,0.06);
+          margin-bottom: 24px;
+          color: #153b3a;
+        }
+        .voter-participation-heading {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 16px;
+          margin-bottom: 18px;
+        }
+        .voter-participation-heading h2 {
+          font-size: 1.2rem;
+          font-weight: 800;
+          color: #0e4643 !important;
+          margin: 0 0 4px;
+        }
+        .voter-participation-heading p {
+          font-size: 0.82rem;
+          color: #385a55 !important;
+          margin: 0;
+        }
+        .turnout-badge {
+          flex-shrink: 0;
+          border-radius: 999px;
+          background: #edf8f5;
+          color: #117f76;
+          padding: 7px 11px;
+          font-size: 0.72rem;
+          font-weight: 800;
+        }
+        .participation-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 18px;
+        }
+        .participation-summary-item {
+          background: #f8fbfa;
+          border: 1px solid #edf4f2;
+          border-radius: 12px;
+          padding: 14px;
+        }
+        .participation-summary-item span {
+          display: block;
+          color: #365650 !important;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .participation-summary-item strong {
+          display: block;
+          color: #052e2c !important;
+          font-size: 1.75rem;
+          font-weight: 900;
+          line-height: 1;
+          margin-top: 4px;
+        }
+        .reconciliation-banner {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          border-radius: 12px;
+          padding: 12px 14px;
+          margin-bottom: 18px;
+          font-size: 0.78rem;
+        }
+        .reconciliation-banner.complete {
+          background: #edf8f5;
+          border: 1px solid #bfe4dc;
+          color: #0e625b;
+        }
+        .reconciliation-banner.pending {
+          background: #fffaf0;
+          border: 1px solid #f8d57a;
+          color: #8a5a00;
+        }
+        .reconciliation-banner strong { color: #7a4b00 !important; font-weight: 900; }
+        .reconciliation-banner span { color: #8a5a00 !important; text-align: right; }
+        .reconciliation-banner.complete strong { color: #0e625b !important; }
+        .reconciliation-banner.complete span { color: #117f76 !important; }
+        .course-breakdown-list {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        .course-breakdown-row {
+          border-bottom: 1px solid #edf4f2;
+          padding-bottom: 14px;
+        }
+        .course-breakdown-row:last-child {
+          border-bottom: 0;
+          padding-bottom: 0;
+        }
+        .course-breakdown-label {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 7px;
+          font-size: 0.82rem;
+        }
+        .course-breakdown-label strong { color: #0e4643 !important; font-weight: 800; }
+        .course-breakdown-label span { color: #385a55 !important; font-weight: 700; text-align: right; }
+        .course-breakdown-track {
+          width: 100%;
+          height: 8px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: #edf4f2;
+        }
+        .course-breakdown-fill {
+          height: 100%;
+          border-radius: 999px;
+          background: #117f76;
+          transition: width 0.4s ease;
+        }
+        @media (max-width: 640px) {
+          .voter-participation-heading,
+          .reconciliation-banner { flex-direction: column; align-items: flex-start; }
+          .reconciliation-banner span,
+          .course-breakdown-label span { text-align: left; }
+          .participation-summary-grid { grid-template-columns: 1fr; }
+          .course-breakdown-label { flex-direction: column; gap: 4px; }
+        }
+
         .positions-layout-stack { 
           display: flex; 
           flex-direction: column; 
@@ -215,8 +378,8 @@ export default function Results() {
           align-items: center; 
         }
         .position-card-topbar h2 { 
-          font-size: 1rem; 
-          font-weight: 700; 
+          font-size: 1.1rem;
+          font-weight: 850;
           color: #153b3a; 
           margin: 0; 
         }
@@ -236,10 +399,10 @@ export default function Results() {
           display: flex; 
           justify-content: space-between; 
           align-items: center; 
-          font-size: 0.85rem; 
+          font-size: 0.96rem;
         }
         .candidate-name-text { 
-          font-weight: 600; 
+          font-weight: 800;
           color: #153b3a; 
           display: flex; 
           align-items: center; 
@@ -249,27 +412,77 @@ export default function Results() {
           background: #fff6d8; 
           color: #c66a00; 
           border: 1px solid #f8d57a; 
-          font-size: 0.65rem; 
-          padding: 2px 6px; 
-          border-radius: 4px; 
-          font-weight: 700; 
+          font-size: 0.74rem;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: 850;
         }
         
         .progress-bar-track { 
           width: 100%; 
-          background: #edf4f2; 
-          height: 8px; 
-          border-radius: 4px; 
+          background: #dbe8e8;
+          height: 10px;
+          border-radius: 999px;
           overflow: hidden; 
         }
+        .badge-pill.tie-badge {
+          background: #e7f4f5;
+          color: #0e625b;
+          border-color: #b5dfe1;
+        }
+
         .progress-bar-fill { 
           height: 100%; 
           background: #117f76; 
-          border-radius: 4px; 
+          border-radius: 999px;
           transition: width 0.4s ease; 
         }
         .progress-bar-fill.leading { 
           background: #0e4643; 
+        }
+        .progress-bar-fill.tied {
+          background: #117f76;
+        }
+
+        .candidate-vote-summary {
+          display: inline-flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 5px;
+          color: #244b4b !important;
+          font-weight: 800 !important;
+          white-space: nowrap;
+        }
+        .candidate-vote-count {
+          display: inline-flex;
+          min-width: 2rem;
+          justify-content: center;
+          border-radius: 7px;
+          background: #0e4643;
+          color: #ffffff !important;
+          padding: 4px 7px;
+          font-size: 1rem;
+          font-weight: 900 !important;
+          line-height: 1;
+          font-variant-numeric: tabular-nums;
+        }
+        .candidate-vote-count.zero {
+          background: #e4edef;
+          color: #173b49 !important;
+        }
+        .candidate-vote-label {
+          color: #244b4b;
+          font-weight: 850;
+        }
+        .candidate-vote-percentage {
+          margin-left: 3px;
+          border-radius: 999px;
+          background: #e8f7f5;
+          color: #0e625b !important;
+          padding: 4px 7px;
+          font-size: .82rem;
+          font-weight: 850;
+          font-variant-numeric: tabular-nums;
         }
 
         .refresh-action-btn { 
@@ -308,9 +521,11 @@ export default function Results() {
 
       <div className="metrics-cards-grid">
         <div className="metric-box">
-          <div className="metric-label">Total Votes Cast</div>
+          <div className="metric-label">Counted Eligible Ballots</div>
           <div className="metric-number">{data?.totalVotes || 0}</div>
-          <div className="metric-subtext" style={{ color: '#117f76', fontWeight: 600 }}>Secure encrypted ballots</div>
+          <div className="metric-subtext" style={{ color: '#117f76', fontWeight: 600 }}>
+            {excludedBallotCount > 0 ? `${excludedBallotCount} unmatched ballot${excludedBallotCount === 1 ? "" : "s"} excluded` : "Secure eligible ballots"}
+          </div>
         </div>
         <div className="metric-box">
           <div className="metric-label">Election Status</div>
@@ -320,6 +535,64 @@ export default function Results() {
           <div className="metric-subtext">Live database monitoring state</div>
         </div>
       </div>
+
+      {data?.voterSummary && (
+        <section className="voter-participation-card">
+          <div className="voter-participation-heading">
+            <div>
+              <h2>Voter participation by course / program</h2>
+              <p>Active voters and course moderators compared with ballots cast in this election.</p>
+            </div>
+            <span className="turnout-badge">{data.voterSummary.turnoutPercentage.toFixed(1)}% overall turnout</span>
+          </div>
+
+          <div className="participation-summary-grid">
+            <div className="participation-summary-item">
+              <span>Registered voters</span>
+              <strong>{data.voterSummary.totalRegisteredVoters}</strong>
+            </div>
+            <div className="participation-summary-item">
+              <span>Voted in this election</span>
+              <strong>{data.voterSummary.totalVotedVoters}</strong>
+            </div>
+            <div className="participation-summary-item">
+              <span>Not yet voted</span>
+              <strong>{data.voterSummary.remainingVoters}</strong>
+            </div>
+          </div>
+
+          <div className={`reconciliation-banner ${reconciliationComplete ? "complete" : "pending"}`}>
+            <strong>
+              {excludedBallotCount > 0
+                ? `${excludedBallotCount} submitted ${excludedBallotCount === 1 ? "ballot was" : "ballots were"} not matched to an active voter in the selected courses.`
+                : data.voterSummary.totalRegisteredVoters === 0
+                ? "No registered voters found for the selected courses."
+                : reconciliationComplete
+                ? "All registered voters have voted and the totals reconcile."
+                : `${data.voterSummary.remainingVoters} registered ${data.voterSummary.remainingVoters === 1 ? "voter has" : "voters have"} not voted yet.`}
+            </strong>
+            <span>
+              {submittedBallotCount} submitted {submittedBallotCount === 1 ? "ballot" : "ballots"}; {data.totalVotes} counted for the selected courses
+              {data.voterSummary.ballotCountMatchesVoterCount ? " and matched " : ", but matched "}
+              {data.voterSummary.totalVotedVoters} unique voters
+            </span>
+          </div>
+
+          <div className="course-breakdown-list">
+            {data.voterSummary.courses.map((course) => (
+              <div key={course.course} className="course-breakdown-row">
+                <div className="course-breakdown-label">
+                  <strong>{course.course}</strong>
+                  <span>{course.votedVoters} voted / {course.registeredVoters} registered · {course.turnoutPercentage.toFixed(1)}%</span>
+                </div>
+                <div className="course-breakdown-track" aria-label={`${course.course} turnout`}>
+                  <div className="course-breakdown-fill" style={{ width: `${Math.min(course.turnoutPercentage, 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="positions-layout-stack">
         <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0e4643', margin: '0 0 -4px 0' }}>
@@ -333,21 +606,27 @@ export default function Results() {
           }));
 
           const maxVotes = Math.max(...result.candidates.map((c) => c.votes), 0);
+          const isTie = result.isTie ?? (maxVotes > 0 && result.candidates.filter((candidate) => candidate.votes === maxVotes).length > 1);
 
           return (
             <section key={result.position._id} className="position-box-card">
               <div className="position-card-topbar">
                 <h2>{result.position.name}</h2>
-                {result.winner && (
+                {isTie ? (
+                  <span className="badge-pill tie-badge">
+                    ⚖ Tie · {maxVotes} {maxVotes === 1 ? "vote" : "votes"} each
+                  </span>
+                ) : result.winner ? (
                   <span className="badge-pill">
                     ★ Winner: {result.winner.candidate.firstName} {result.winner.candidate.lastName}
                   </span>
-                )}
+                ) : null}
               </div>
 
               <div className="candidates-inner-stack">
                 {result.candidates.map((item) => {
                   const isLeading = maxVotes > 0 && item.votes === maxVotes;
+                  const isTied = isTie && isLeading;
                   const pct = item.percentage ?? (data.totalVotes > 0 ? (item.votes / data.totalVotes) * 100 : 0);
 
                   return (
@@ -355,19 +634,22 @@ export default function Results() {
                       <div className="candidate-info-line">
                         <div className="candidate-name-text">
                           <span>{item.candidate.firstName} {item.candidate.lastName}</span>
-                          {isLeading && data.totalVotes > 0 && (
+                          {isTied && data.totalVotes > 0 ? (
+                            <span className="badge-pill tie-badge">Tied</span>
+                          ) : isLeading && data.totalVotes > 0 && (
                             <span className="badge-pill">Leading</span>
                           )}
                         </div>
-                        <div style={{ fontWeight: 600, color: '#334155' }}>
-                          <span style={{ fontWeight: '800', color: '#153b3a' }}>{item.votes}</span> votes 
-                          <span style={{ color: '#94a3b8', marginLeft: '6px' }}>({pct.toFixed(0)}%)</span>
+                        <div className="candidate-vote-summary">
+                          <span className={`candidate-vote-count ${item.votes === 0 ? "zero" : ""}`}>{item.votes}</span>
+                          <span className="candidate-vote-label">{item.votes === 1 ? "vote" : "votes"}</span>
+                          <span className="candidate-vote-percentage">{pct.toFixed(0)}%</span>
                         </div>
                       </div>
 
                       <div className="progress-bar-track">
                         <div 
-                          className={`progress-bar-fill ${isLeading && data.totalVotes > 0 ? 'leading' : ''}`}
+                          className={`progress-bar-fill ${isLeading && data.totalVotes > 0 ? (isTie ? 'tied' : 'leading') : ''}`}
                           style={{ width: `${pct}%` }}
                         ></div>
                       </div>
@@ -375,7 +657,7 @@ export default function Results() {
                   );
                 })}
 
-                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+                <div className="results-chart-divider" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                       <XAxis dataKey="name" tick={{ fill: '#617875', fontSize: 11 }} />

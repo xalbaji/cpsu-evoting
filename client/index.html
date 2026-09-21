@@ -4,10 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CPSU-EVOTING</title>
+    <meta name="theme-color" content="#0d2438" />
+    <meta name="description" content="CPSU E-Voting — secure, anonymous, and transparent digital elections for Central Philippine State University." />
+    <title>CPSU E-Voting — Central Philippine State University</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      const savedTheme = localStorage.getItem("cpsu-theme");
+      document.documentElement.dataset.theme = savedTheme === "dark" ? "dark" : "light";
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

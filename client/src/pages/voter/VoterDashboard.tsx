@@ -2,14 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import type { SVGProps } from "react";
 import { Link } from "react-router-dom";
 
-import { api } from "../../api/axios";
-import { useAuth } from "../../context/AuthContext";
+import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth-context";
 
 /* ---------------- types ---------------- */
 interface Election {
   _id: string;
   title: string;
   description: string;
+  course?: string;
+  courses?: string[];
   startDate: string;
   endDate: string;
   status: string;
@@ -19,7 +21,12 @@ interface Election {
 type Status = "active" | "upcoming" | "ended";
 
 /* ---------------- helpers ---------------- */
-function normalizeStatus(e: Election): Status {
+function normalizeStatus(e: Election, now = Date.now()): Status {
+  const start = e.startDate ? new Date(e.startDate).getTime() : null;
+  const end = e.endDate ? new Date(e.endDate).getTime() : null;
+  if (end && now >= end) return "ended";
+  if (start && now < start) return "upcoming";
+
   switch (e.status?.toLowerCase()) {
     case "active":
       return "active";
@@ -33,11 +40,8 @@ function normalizeStatus(e: Election): Status {
       return "ended";
   }
   // fallback: derive from dates if status is missing/unknown
-  const now = Date.now();
-  const start = e.startDate ? new Date(e.startDate).getTime() : null;
-  const end = e.endDate ? new Date(e.endDate).getTime() : null;
   if (start && now < start) return "upcoming";
-  if (end && now > end) return "ended";
+  if (end && now >= end) return "ended";
   return "active";
 }
 
@@ -117,10 +121,17 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 const toneStyles: Record<string, string> = {
-  emerald: "from-brand-500 to-brand-700 shadow-brand-500/30",
-  sky: "from-sky-500 to-indigo-500 shadow-sky-200",
-  amber: "from-amber-500 to-orange-500 shadow-amber-200",
-  violet: "from-violet-500 to-fuchsia-500 shadow-violet-200",
+  emerald: "from-[#0f766e] to-[#0a3d3a]",
+  sky:     "from-sky-500 to-indigo-600",
+  amber:   "from-amber-500 to-orange-500",
+  violet:  "from-violet-500 to-fuchsia-600",
+};
+
+const toneShadow: Record<string, string> = {
+  emerald: "rgba(15,118,110,0.3)",
+  sky:     "rgba(14,165,233,0.3)",
+  amber:   "rgba(245,158,11,0.3)",
+  violet:  "rgba(139,92,246,0.3)",
 };
 
 function StatCard({
@@ -128,14 +139,21 @@ function StatCard({
 }: { label: string; value: number; tone: string; icon: React.ReactNode; delay: number }) {
   return (
     <div
-      className="animate-fade-up rounded-2xl border border-brand-200 bg-white/90 p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-      style={{ animationDelay: `${delay}ms` }}
+      className="dashboard-stat-card animate-fade-up rounded-2xl bg-white p-5 transition-all duration-300 hover:-translate-y-1"
+      style={{
+        animationDelay: `${delay}ms`,
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)",
+      }}
     >
-      <div className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ${toneStyles[tone]}`}>
+      <div
+        className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white ${toneStyles[tone]}`}
+        style={{ boxShadow: `0 4px 12px ${toneShadow[tone]}` }}
+      >
         {icon}
       </div>
-      <p className="text-3xl font-extrabold text-brand-900">{value}</p>
-      <p className="mt-0.5 text-sm font-medium text-ink-500">{label}</p>
+      <p className="dashboard-stat-value tabular-nums text-4xl font-extrabold" style={{ color: "#052e2c" }}>{value}</p>
+      <p className="dashboard-stat-label mt-1 text-sm font-semibold" style={{ color: "#64748b" }}>{label}</p>
     </div>
   );
 }
@@ -144,58 +162,96 @@ function ElectionCard({ election, index, isVerified }: { election: Election; ind
   const status = normalizeStatus(election);
   const start = fmtDate(election.startDate);
   const end = fmtDate(election.endDate);
+  const courses = election.courses?.length ? election.courses : election.course ? [election.course] : [];
+
+  const accentColor =
+    status === "active"   ? "linear-gradient(90deg, #0f766e, #2dd4bf)"
+    : status === "upcoming" ? "linear-gradient(90deg, #f59e0b, #f97316)"
+    : "#e2e8f0";
 
   return (
     <article
-      className="animate-fade-up group relative flex min-h-[260px] flex-col overflow-hidden rounded-2xl border border-brand-200 bg-white/90 p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/50 hover:shadow-lg"
-      style={{ animationDelay: `${index * 80}ms` }}
+      className="voter-election-card animate-fade-up group relative flex min-h-[260px] flex-col overflow-hidden rounded-2xl bg-white transition-all duration-300 hover:-translate-y-1"
+      style={{
+        animationDelay: `${index * 80}ms`,
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)",
+      }}
     >
-      <div className={`absolute inset-x-0 top-0 h-1 ${
-        status === "active" ? "bg-gradient-to-r from-brand-500 to-brand-700"
-        : status === "upcoming" ? "bg-gradient-to-r from-amber-400 to-orange-400"
-        : "bg-brand-300"}`}
-      />
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <h3 className="min-w-0 break-words text-lg font-bold leading-tight text-brand-900 transition-colors group-hover:text-brand-700">
-          {election.title}
-        </h3>
-        <StatusBadge status={status} />
-      </div>
-      <p className="mb-5 line-clamp-3 min-h-[3.75rem] text-sm leading-6 text-ink-500">
-        {election.description || "No description provided."}
-      </p>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-brand-200 pt-4">
-        <span className="inline-flex min-w-0 items-start gap-1.5 text-xs leading-5 text-ink-500">
-          <CalendarIcon className="h-4 w-4" />
-          {start ? (end ? `${start} – ${end}` : start) : "Dates TBA"}
-        </span>
+      {/* Top accent stripe */}
+      <div style={{ height: 3, background: accentColor, flexShrink: 0 }} />
 
-        {status === "active" ? (
-          election.hasVoted ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700">
-              <CheckCircleIcon className="h-3.5 w-3.5" /> Voted
-            </span>
-          ) : !isVerified ? (
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-              Verification required
+      <div className="p-6 flex flex-col flex-1">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h3
+            className="voter-election-title min-w-0 break-words text-lg font-bold leading-tight transition-colors"
+            style={{ color: "#052e2c", margin: 0 }}
+          >
+            {election.title}
+          </h3>
+           <StatusBadge status={status} />
+         </div>
+          {courses.length > 0 && (
+            <div className="voter-course-list mb-3 flex flex-wrap gap-1.5">
+              {courses.map((course) => <span key={course} className="voter-course-chip inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: "#ecfeff", color: "#0e7490" }}>{course}</span>)}
+            </div>
+          )}
+         <p className="voter-election-description mb-5 line-clamp-3 min-h-[3.75rem] text-sm leading-6" style={{ color: "#64748b" }}>
+          {election.description || "No description provided."}
+        </p>
+        <div
+          className="voter-election-footer mt-auto flex flex-wrap items-center justify-between gap-3 pt-4"
+          style={{ borderTop: "1px solid #f1f5f9" }}
+        >
+          <span className="voter-election-date inline-flex min-w-0 items-center gap-1.5 text-xs" style={{ color: "#94a3b8" }}>
+            <CalendarIcon className="h-4 w-4" />
+            {start ? (end ? `${start} – ${end}` : start) : "Dates TBA"}
+          </span>
+
+          {status === "active" ? (
+            election.hasVoted ? (
+              <span
+                className="voter-status-pill voter-status-success inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold"
+                style={{ background: "#f0fdfb", color: "#0f766e" }}
+              >
+                <CheckCircleIcon className="h-3.5 w-3.5" /> Voted
+              </span>
+            ) : !isVerified ? (
+              <span
+                className="voter-status-pill voter-status-warning inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
+                style={{ background: "#fffbeb", color: "#b45309" }}
+              >
+                Verification required
+              </span>
+            ) : (
+              <Link
+                to={`/voter/elections/${election._id}/vote`}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition active:scale-95"
+                style={{
+                  background: "linear-gradient(135deg, #0f766e, #0a5450)",
+                  boxShadow: "0 2px 8px rgba(15,118,110,0.28)",
+                }}
+              >
+                Vote Now <ArrowIcon className="h-4 w-4" />
+              </Link>
+            )
+          ) : status === "upcoming" ? (
+            <span
+              className="voter-status-pill voter-status-warning inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
+              style={{ background: "#fffbeb", color: "#b45309" }}
+            >
+              <ClockIcon className="h-3.5 w-3.5" /> Opens soon
             </span>
           ) : (
             <Link
-              to={`/voter/elections/${election._id}/vote`}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-brand-500/30 transition hover:shadow-lg hover:brightness-110 active:scale-95"
+              to={`/voter/elections/${election._id}/results`}
+              className="voter-results-link text-sm font-semibold hover:underline"
+              style={{ color: "#0f766e" }}
             >
-              Vote Now <ArrowIcon className="h-4 w-4" />
+              View results
             </Link>
-          )
-        ) : status === "upcoming" ? (
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-            <ClockIcon className="h-3.5 w-3.5" /> Opens soon
-          </span>
-        ) : (
-          <Link to={`/voter/elections/${election._id}/results`} className="text-sm font-semibold text-brand-700 hover:underline">
-            View results
-          </Link>
-        )}
+          )}
+        </div>
       </div>
     </article>
   );
@@ -204,13 +260,13 @@ function ElectionCard({ election, index, isVerified }: { election: Election; ind
 function Skeleton() {
   return (
     <div className="space-y-8" aria-busy="true">
-      <div className="h-48 animate-pulse rounded-3xl bg-brand-200/70" />
+      <div className="h-48 skeleton" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-36 animate-pulse rounded-2xl bg-brand-200/70" />
+          <div key={i} className="h-36 skeleton" />
         ))}
       </div>
-      <div className="h-64 animate-pulse rounded-2xl bg-brand-200/70" />
+      <div className="h-64 skeleton" />
     </div>
   );
 }
@@ -222,6 +278,12 @@ export default function VoterDashboard() {
   const [elections, setElections] = useState<Election[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const load = useCallback(async () => {
     setError("");
@@ -255,9 +317,18 @@ export default function VoterDashboard() {
 
   if (loading) return <Skeleton />;
 
-  const active = elections.filter((e) => normalizeStatus(e) === "active");
-  const upcoming = elections.filter((e) => normalizeStatus(e) === "upcoming");
-  const ended = elections.filter((e) => normalizeStatus(e) === "ended");
+  const moderatorCourse = user?.course?.trim().toUpperCase();
+  const visibleElections = user?.role === "ADMIN"
+    ? moderatorCourse
+      ? elections.filter((election) => {
+          const courses = election.courses?.length ? election.courses : election.course ? [election.course] : [];
+          return courses.some((course) => course.toUpperCase() === moderatorCourse);
+        })
+      : []
+    : elections;
+  const active = visibleElections.filter((e) => normalizeStatus(e, currentTime) === "active");
+  const upcoming = visibleElections.filter((e) => normalizeStatus(e, currentTime) === "upcoming");
+  const ended = visibleElections.filter((e) => normalizeStatus(e, currentTime) === "ended");
   const firstName = user?.firstName ?? "Voter";
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -269,30 +340,42 @@ export default function VoterDashboard() {
     { label: "Active now", value: active.length, tone: "emerald", icon: <BoltIcon className="h-5 w-5" /> },
     { label: "Upcoming", value: upcoming.length, tone: "amber", icon: <ClockIcon className="h-5 w-5" /> },
     { label: "Completed", value: ended.length, tone: "sky", icon: <CheckCircleIcon className="h-5 w-5" /> },
-    { label: "Total elections", value: elections.length, tone: "violet", icon: <ChartIcon className="h-5 w-5" /> },
+    { label: "Total elections", value: visibleElections.length, tone: "violet", icon: <ChartIcon className="h-5 w-5" /> },
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="voter-dashboard space-y-8">
       {/* Hero */}
-      <section className="animate-fade-up relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 p-8 text-white shadow-xl shadow-brand-900/20 sm:p-10">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brand-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-teal-300/10 blur-3xl" />
+      <section
+        className="voter-dashboard-hero animate-fade-up relative overflow-hidden rounded-3xl p-8 text-white sm:p-10"
+        style={{
+          background: "linear-gradient(135deg, #052e2c 0%, #0a3d3a 45%, #0f766e 100%)",
+          boxShadow: "0 8px 32px rgba(5,46,44,0.28)",
+        }}
+      >
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full blur-3xl" style={{ background: "rgba(45,212,191,0.12)" }} />
+        <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full blur-3xl" style={{ background: "rgba(255,255,255,0.05)" }} />
 
-        <p className="font-sans text-xs font-bold uppercase tracking-[0.2em] text-brand-300">
+        <p style={{ fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "#5eead4", margin: 0 }}>
           {greeting()},
         </p>
-        <h1 className="mt-1 text-3xl font-extrabold capitalize sm:text-4xl">
+        <h1 className="mt-2 font-extrabold capitalize" style={{ fontSize: "clamp(1.75rem,4vw,2.5rem)", margin: "0.5rem 0 0" }}>
           {firstName} <span className="animate-wave inline-block">👋</span>
         </h1>
-        <p className="mt-3 max-w-xl font-sans text-brand-100/90">
-          Your voice shapes CPSU. Review the open elections below and make your vote count.
+        <p style={{ marginTop: "0.75rem", maxWidth: 520, color: "rgba(204,251,241,0.85)", fontSize: "0.9rem", marginBottom: 0 }}>
+           Your voice shapes CPSU. Review the elections assigned to {user?.course ?? "your course"} below and make your vote count.
         </p>
-        <div className="mt-6 flex flex-wrap gap-2 text-xs font-medium">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-inset ring-white/20">
+        <div className="mt-5 flex flex-wrap gap-2" style={{ fontSize: "0.75rem", fontWeight: 500 }}>
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
+          >
             <CalendarIcon className="h-3.5 w-3.5" /> {today}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-inset ring-white/20">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
+          >
             <ShieldIcon className="h-3.5 w-3.5" /> Secure · Anonymous · Encrypted
           </span>
         </div>
@@ -308,15 +391,21 @@ export default function VoterDashboard() {
       {/* Active elections */}
       <section>
         <div className="mb-4 flex items-center gap-3">
-          <h2 className="text-xl font-bold text-brand-900">Active Elections</h2>
-          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+          <h2 className="voter-section-title text-xl font-bold" style={{ color: "#052e2c", margin: 0 }}>Active Elections</h2>
+          <span
+            className="voter-section-count rounded-full px-2.5 py-0.5 text-xs font-bold"
+            style={{ background: "#d1fae5", color: "#065f46" }}
+          >
             {active.length}
           </span>
         </div>
 
         {!user?.isVerified && active.length > 0 && (
-          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 font-sans text-sm text-amber-900">
-            <ShieldIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div
+            className="voter-alert-warning mb-5 flex items-start gap-3 rounded-2xl p-4 text-sm"
+            style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}
+          >
+            <ShieldIcon className="mt-0.5 h-5 w-5 shrink-0" style={{ color: "#d97706" }} />
             <p className="m-0">
               Your account is awaiting verification. An administrator must verify your account before you can cast a ballot.
             </p>
@@ -324,15 +413,18 @@ export default function VoterDashboard() {
         )}
 
         {active.length === 0 ? (
-          <div className="animate-fade-up rounded-2xl border-2 border-dashed border-brand-200 bg-white/60 p-12 text-center">
-            <ShieldIcon className="mx-auto h-12 w-12 text-brand-300" />
-            <h3 className="mt-4 font-bold text-brand-700">No active elections right now</h3>
-            <p className="mt-1 text-sm text-ink-500">
-              New elections will appear here the moment they open.
+          <div
+            className="voter-empty-state animate-fade-up rounded-2xl p-12 text-center"
+            style={{ border: "2px dashed #e2e8f0", background: "#f8fafc" }}
+          >
+            <ShieldIcon className="mx-auto h-12 w-12" style={{ color: "#99f6e4" }} />
+            <h3 className="voter-empty-title mt-4 font-bold" style={{ color: "#0f766e" }}>No active elections right now</h3>
+            <p className="voter-empty-description mt-1 text-sm" style={{ color: "#64748b" }}>
+              New {user?.course ? `${user.course} ` : "course-based "}elections will appear here the moment they open.
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-2">
+          <div className={`voter-election-grid ${active.length === 1 ? "is-single" : ""}`}>
             {active.map((election, i) => (
               <ElectionCard key={election._id} election={election} index={i} isVerified={Boolean(user?.isVerified)} />
             ))}
@@ -344,21 +436,27 @@ export default function VoterDashboard() {
       {upcoming.length > 0 && (
         <section>
           <div className="mb-4 flex items-center gap-3">
-            <h2 className="text-xl font-bold text-brand-900">Coming Up</h2>
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+            <h2 className="voter-section-title text-xl font-bold" style={{ color: "#052e2c", margin: 0 }}>Coming Up</h2>
+            <span
+              className="voter-section-count rounded-full px-2.5 py-0.5 text-xs font-bold"
+              style={{ background: "#fef3c7", color: "#92400e" }}
+            >
               {upcoming.length}
             </span>
           </div>
-          <div className="animate-fade-up divide-y divide-brand-200 rounded-2xl border border-brand-200 bg-white shadow-sm">
+          <div
+            className="voter-list-card animate-fade-up divide-y rounded-2xl bg-white"
+            style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+          >
             {upcoming.map((election) => (
-              <div key={election._id} className="flex items-center justify-between gap-4 p-4 transition hover:bg-brand-50">
+              <div key={election._id} className="flex items-center justify-between gap-4 p-4 transition" style={{ borderBottom: "1px solid #f1f5f9" }}>
                 <div>
-                  <p className="font-semibold text-brand-900">{election.title}</p>
-                  <p className="text-xs text-ink-500">
+                  <p className="font-semibold" style={{ color: "#052e2c", margin: 0 }}>{election.title}</p>
+                  <p className="text-xs" style={{ color: "#64748b", margin: "2px 0 0" }}>
                     Opens {election.startDate ? fmtDate(election.startDate) : "soon"}
                   </p>
                 </div>
-                <ClockIcon className="h-5 w-5 shrink-0 text-amber-500" />
+                <ClockIcon className="h-5 w-5 shrink-0" style={{ color: "#f59e0b" }} />
               </div>
             ))}
           </div>
@@ -369,21 +467,35 @@ export default function VoterDashboard() {
       {ended.length > 0 && (
         <section>
           <div className="mb-4 flex items-center gap-3">
-            <h2 className="text-xl font-bold text-brand-900">Past Elections</h2>
-            <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+            <h2 className="voter-section-title text-xl font-bold" style={{ color: "#052e2c", margin: 0 }}>Past Elections</h2>
+            <span
+              className="voter-section-count rounded-full px-2.5 py-0.5 text-xs font-bold"
+              style={{ background: "#f1f5f9", color: "#64748b" }}
+            >
               {ended.length}
             </span>
           </div>
-          <div className="animate-fade-up divide-y divide-brand-200 rounded-2xl border border-brand-200 bg-white shadow-sm">
-            {ended.map((election) => (
-              <div key={election._id} className="flex items-center justify-between gap-4 p-4 transition hover:bg-brand-50">
+          <div
+            className="voter-list-card animate-fade-up rounded-2xl bg-white"
+            style={{ border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+          >
+            {ended.map((election, idx) => (
+              <div
+                key={election._id}
+                className="flex items-center justify-between gap-4 p-4 transition"
+                style={{ borderBottom: idx < ended.length - 1 ? "1px solid #f1f5f9" : "none" }}
+              >
                 <div>
-                  <p className="font-semibold text-brand-900">{election.title}</p>
-                  <p className="text-xs text-ink-500">
+                  <p className="font-semibold" style={{ color: "#052e2c", margin: 0 }}>{election.title}</p>
+                  <p className="text-xs" style={{ color: "#64748b", margin: "2px 0 0" }}>
                     Ended {election.endDate ? fmtDate(election.endDate) : "—"}
                   </p>
                 </div>
-                <Link to={`/voter/elections/${election._id}/results`} className="shrink-0 text-sm font-semibold text-brand-700 hover:underline">
+                <Link
+                  to={`/voter/elections/${election._id}/results`}
+                  className="shrink-0 text-sm font-semibold hover:underline"
+                  style={{ color: "#0f766e" }}
+                >
                   View results
                 </Link>
               </div>
@@ -393,8 +505,15 @@ export default function VoterDashboard() {
       )}
 
       {/* Trust banner */}
-      <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-100/60 p-4 text-sm text-brand-900">
-        <ShieldIcon className="h-5 w-5 shrink-0 text-brand-600" />
+      <div
+        className="voter-trust-banner flex items-center gap-3 rounded-2xl p-4 text-sm"
+        style={{
+          border: "1px solid #ccfbf1",
+          background: "linear-gradient(135deg, #f0fdfb, #f8fafc)",
+          color: "#0a3d3a",
+        }}
+      >
+        <ShieldIcon className="h-5 w-5 shrink-0" style={{ color: "#0f766e" }} />
         <span className="min-w-0 flex-1 leading-5">
           Your ballot is encrypted and anonymous — even administrators can't link your identity to your vote.
         </span>

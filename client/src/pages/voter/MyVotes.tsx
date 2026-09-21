@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SVGProps } from "react";
 import { Link } from "react-router-dom";
 
-import { api } from "../../api/axios";
+import { api } from "../../lib/api";
+import { encodeReceiptQr } from "../../lib/qr";
 
 /* ---------------- types (matches getMyVoteStatus) ---------------- */
 interface PopulatedElection {
@@ -115,6 +116,22 @@ function useCopy() {
   return { copied, copy };
 }
 
+function ReceiptQr({ value }: { value: string }) {
+  const matrix = useMemo(() => encodeReceiptQr(value), [value]);
+  const quietZone = 4;
+  const dimension = matrix.length + quietZone * 2;
+  const modules = matrix.flatMap((row, y) => row.flatMap((dark, x) => (
+    dark ? <rect key={`${x}-${y}`} x={x + quietZone} y={y + quietZone} width="1" height="1" /> : []
+  )));
+
+  return (
+    <svg className="receipt-qr-code" viewBox={`0 0 ${dimension} ${dimension}`} role="img" aria-label={`QR code for receipt ${value}`}>
+      <rect width={dimension} height={dimension} fill="#fff" />
+      <g fill="#071521" shapeRendering="crispEdges">{modules}</g>
+    </svg>
+  );
+}
+
 /* ---------------- small components ---------------- */
 const toneStyles: Record<string, string> = {
   brand:  "from-brand-500 to-brand-700",
@@ -165,25 +182,26 @@ function ElectionStatusBadge({ status }: { status: ElectionStatus }) {
 
 function VoteCard({ vote, index }: { vote: MyVote; index: number }) {
   const { copied, copy } = useCopy();
+  const [showQr, setShowQr] = useState(false);
   const election = vote.electionId;
   const status = electionStatus(election);
 
   return (
     <article
-      className="animate-fade-up group relative overflow-hidden rounded-2xl border border-brand-200 bg-white/90 p-6 pl-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/50 hover:shadow-lg"
+      className="my-vote-card animate-fade-up group relative overflow-hidden rounded-2xl border border-brand-200 bg-white/90 p-6 pl-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/50 hover:shadow-lg"
       style={{ animationDelay: `${index * 70}ms` }}
     >
       {/* left accent bar */}
       <div className="absolute inset-y-0 left-0 w-1.5 bg-linear-to-b from-brand-500 to-brand-700" />
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="my-vote-card-content flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         {/* left: receipt identity */}
-        <div className="flex min-w-0 items-start gap-4">
+        <div className="my-vote-card-identity flex min-w-0 items-start gap-4">
           <div className="hidden h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700 transition-colors group-hover:bg-brand-500 group-hover:text-white sm:grid">
             <ReceiptIcon className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-lg font-bold text-brand-900 transition-colors group-hover:text-brand-700">
+            <h3 className="my-vote-title truncate text-lg font-bold text-brand-900 transition-colors group-hover:text-brand-700">
               {election?.title ?? "Deleted election"}
             </h3>
             <p className="mt-1 inline-flex items-center gap-1.5 font-sans text-xs text-ink-500">
@@ -194,12 +212,12 @@ function VoteCard({ vote, index }: { vote: MyVote; index: number }) {
         </div>
 
         {/* right: reference + badges + results */}
-        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+        <div className="my-vote-card-actions flex flex-wrap items-center gap-3 lg:justify-end">
           <button
             type="button"
             onClick={() => copy(vote.voteReference)}
             title="Copy reference code"
-            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 font-mono text-xs font-semibold transition active:scale-95 ${
+            className={`my-vote-reference inline-flex items-center gap-2 rounded-lg border px-3 py-2 font-mono text-xs font-semibold transition active:scale-95 ${
               copied
                 ? "border-brand-500 bg-brand-500 text-white"
                 : "border-brand-200 bg-brand-50 text-ink-700 hover:border-brand-500 hover:text-brand-700"
@@ -208,6 +226,14 @@ function VoteCard({ vote, index }: { vote: MyVote; index: number }) {
             {vote.voteReference}
             {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
           </button>
+
+          <button type="button" onClick={() => setShowQr((current) => !current)} className="receipt-qr-toggle" aria-expanded={showQr}>
+            {showQr ? "Hide QR" : "Show QR"}
+          </button>
+
+          <Link to={`/voter/my-votes/${vote._id}/selections`} className="vote-selections-toggle">
+            <ShieldIcon className="h-3.5 w-3.5" /> View my choices
+          </Link>
 
           {/* your personal status — always green: the vote was counted */}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 font-sans text-xs font-bold text-brand-700 ring-1 ring-brand-500/25">
@@ -227,6 +253,18 @@ function VoteCard({ vote, index }: { vote: MyVote; index: number }) {
           )}
         </div>
       </div>
+
+      {showQr && (
+        <div className="receipt-qr-panel">
+          <div>
+            <strong>Scan to verify this receipt</strong>
+            <p>This QR contains only your EV receipt code. A Super Admin or Course Moderator can scan it from the election verification page.</p>
+            <code>{vote.voteReference}</code>
+          </div>
+          <ReceiptQr value={vote.voteReference} />
+          <button type="button" onClick={() => setShowQr(false)} className="receipt-qr-close">Close</button>
+        </div>
+      )}
     </article>
   );
 }
@@ -261,8 +299,11 @@ export default function MyVotes() {
       // ✅ real endpoint from vote.routes.ts
       const response = await api.get("/votes/my-status");
       setVotes(response.data?.data ?? []);
-    } catch {
-      setError("Unable to load your votes.");
+    } catch (requestError: any) {
+      setError(
+        requestError?.response?.data?.message
+          ?? "Unable to load your votes. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -314,7 +355,7 @@ export default function MyVotes() {
         <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">My Votes</h1>
         <p className="mt-3 max-w-xl font-sans text-brand-100/90">
           {votes.length > 0
-            ? `You've cast ${votes.length === 1 ? "a ballot" : `${votes.length} ballots`} so far. Keep your reference codes — they prove your vote was counted, without revealing your choices.`
+            ? `You've cast ${votes.length === 1 ? "a ballot" : `${votes.length} ballots`} so far. Open any election below to privately review your selections.`
             : "Every ballot you cast will appear here, with a reference code as your proof of voting."}
         </p>
         <div className="mt-6 flex flex-wrap gap-2 font-sans text-xs font-medium">
@@ -350,7 +391,7 @@ export default function MyVotes() {
       )}
 
       {/* Vote list */}
-      <section className="space-y-4">
+      <section className="my-votes-list space-y-4">
         {votes.length === 0 ? (
           <div className="animate-fade-up rounded-2xl border-2 border-dashed border-brand-200 bg-white/60 p-14 text-center">
             <ReceiptIcon className="mx-auto h-12 w-12 text-brand-300" />
@@ -379,7 +420,7 @@ export default function MyVotes() {
         <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-100/70 p-4 font-sans text-sm text-brand-900">
           <ShieldIcon className="h-5 w-5 shrink-0 text-brand-600" />
           <span className="min-w-0 flex-1 leading-5">
-            Your ballot is encrypted and anonymous — even administrators can't link your identity to your vote. Your reference code only confirms that <em>you voted</em>, never <em>what you chose</em>.
+            Your ballot is encrypted and anonymous. Your selections are visible only to your signed-in account; administrators can verify your receipt without seeing what you chose.
           </span>
         </div>
       )}
