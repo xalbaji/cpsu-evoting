@@ -44,7 +44,19 @@ function imageSourceSize(source: BarcodeImageSource) {
   return { width: source.width, height: source.height };
 }
 
-async function detectReceiptFromSource(detector: InstanceType<NativeBarcodeDetector> | null, source: BarcodeImageSource) {
+// Quarter turns catch QR codes held sideways or upside down. The finer
+// 30-degree steps cover receipts photographed at an arbitrary tilt (30, 60,
+// 120, 150, 210, 240, 300, 330 degrees), so a code rotated by anything from
+// 0 to 359 degrees is still decoded — QR detection tolerates the small gap
+// that is left between two neighbouring steps.
+const COARSE_ROTATIONS = [0, 90, 180, 270];
+const FINE_ROTATIONS = [30, 60, 120, 150, 210, 240, 300, 330];
+
+async function detectReceiptFromSource(
+  detector: InstanceType<NativeBarcodeDetector> | null,
+  source: BarcodeImageSource,
+  thorough = true,
+) {
   const readCodes = async (candidate: unknown) => {
     if (!detector) return "";
     try {
@@ -55,6 +67,7 @@ async function detectReceiptFromSource(detector: InstanceType<NativeBarcodeDetec
     }
   };
 
+  // Most scans are straight on, so try the untouched frame before rotating.
   const directResult = await readCodes(source);
   if (directResult) return directResult;
 
@@ -69,15 +82,23 @@ async function detectReceiptFromSource(detector: InstanceType<NativeBarcodeDetec
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) return "";
 
-  for (const rotation of [0, 90, 180, 270]) {
+  const rotations = thorough ? [...COARSE_ROTATIONS, ...FINE_ROTATIONS] : COARSE_ROTATIONS;
+
+  for (const rotation of rotations) {
     for (const mirrored of [false, true]) {
-      const quarterTurn = rotation === 90 || rotation === 270;
-      canvas.width = quarterTurn ? scaledHeight : scaledWidth;
-      canvas.height = quarterTurn ? scaledWidth : scaledHeight;
+      const radians = (rotation * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(radians));
+      const sin = Math.abs(Math.sin(radians));
+      // Grow the canvas to the rotated bounding box so tilted codes (for
+      // example 60 or 290 degrees) are never clipped at the edges.
+      const boxWidth = Math.ceil(scaledWidth * cos + scaledHeight * sin);
+      const boxHeight = Math.ceil(scaledWidth * sin + scaledHeight * cos);
+      canvas.width = boxWidth;
+      canvas.height = boxHeight;
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.translate(canvas.width / 2, canvas.height / 2);
-      context.rotate((rotation * Math.PI) / 180);
+      context.translate(boxWidth / 2, boxHeight / 2);
+      context.rotate(radians);
       context.scale(mirrored ? -1 : 1, 1);
       context.drawImage(source, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
 
@@ -300,7 +321,11 @@ export default function AdminResults() {
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
           audio: false,
         });
         if (!active) {
@@ -320,11 +345,15 @@ export default function AdminResults() {
         const barcodeDetector = (window as unknown as { BarcodeDetector?: NativeBarcodeDetector }).BarcodeDetector;
         const detector = barcodeDetector ? new barcodeDetector({ formats: ["qr_code"] }) : null;
         setScannerNotice(detector
-          ? "Camera ready. Hold the QR code inside the frame until it is recognized."
-          : "Camera ready. Built-in QR decoding is active; hold the QR code inside the frame until it is recognized.");
+          ? "Camera ready. Hold the QR code inside the frame — any rotation (60°, 90°, 180°, 290°…) is read automatically."
+          : "Camera ready. Built-in QR decoding reads any rotation (60°, 90°, 180°, 290°…) — hold the code inside the frame.");
+        let thoroughFrame = false;
         const scan = async () => {
           if (!active || !videoRef.current) return;
-          const normalized = await detectReceiptFromSource(detector, videoRef.current);
+          // Alternate a quick quarter-turn pass with the full all-angle sweep
+          // so tilted codes are still decoded without slowing the preview.
+          thoroughFrame = !thoroughFrame;
+          const normalized = await detectReceiptFromSource(detector, videoRef.current, thoroughFrame);
           if (normalized) {
             setReceiptInput(normalized);
             setScannerOpen(false);
@@ -475,7 +504,7 @@ export default function AdminResults() {
                     <div className="receipt-scanner-heading">
                       <div>
                         <strong>Scan receipt QR code</strong>
-                        <span>Scan live or take a photo. Rotated and mirrored QR codes are checked automatically.</span>
+                        <span>Scan live or take a photo. Rotated QR codes (60°, 90°, 180°, 290° and every angle in between) and mirrored codes are read automatically.</span>
                       </div>
                       <div className="receipt-scanner-actions">
                         <button type="button" onClick={chooseReceiptImage} disabled={imageScanning}>Take photo</button>
