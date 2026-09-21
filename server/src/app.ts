@@ -18,12 +18,15 @@ const app = express();
 app.set("trust proxy", 1);
 
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  // Accept one or more client origins, comma-separated, so Vercel production
+  // and preview URLs can be whitelisted together on Render.
+  ...String(process.env.CLIENT_URL ?? "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
+    .filter(Boolean),
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-].filter(
-  (origin): origin is string => Boolean(origin),
-);
+];
 
 app.use(helmet());
 
@@ -72,6 +75,16 @@ app.use(
   adminRoutes,
 );
 app.use("/api/audit-logs", auditRoutes);
+
+// JSON 404 for unknown API routes so stale deployments surface a readable
+// message instead of an HTML "Cannot GET" page that clients cannot parse.
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `API route not found: ${req.method} ${req.originalUrl}. The deployed backend may be out of date — redeploy the latest server build.`,
+  });
+});
+
 app.use(errorHandler);
 
 export default app;

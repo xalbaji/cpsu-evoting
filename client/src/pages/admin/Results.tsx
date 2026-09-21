@@ -213,7 +213,20 @@ export default function AdminResults() {
       if (detectElection && result?.electionId) setLookupElectionId(result.electionId);
       setReceiptResult(result);
     } catch (requestError: any) {
-      setReceiptError(requestError?.response?.data?.message ?? "Unable to verify this receipt code.");
+      if (!requestError?.response) {
+        setReceiptError(
+          "Cannot reach the server right now. Check your connection, or wait a moment for the server to wake up and try again.",
+        );
+      } else if (typeof requestError.response.data === "string" && /<pre>Cannot (GET|POST)/.test(requestError.response.data)) {
+        setReceiptError(
+          "The deployed server does not have this receipt endpoint yet — its backend deployment is out of date. Redeploy the server and try again.",
+        );
+      } else {
+        setReceiptError(
+          requestError.response.data?.message
+            ?? `Verification failed (HTTP ${requestError.response.status}). Please try again.`,
+        );
+      }
     } finally {
       setLookingUpReceipt(false);
     }
