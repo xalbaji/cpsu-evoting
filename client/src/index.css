@@ -1614,3 +1614,255 @@ td { font-size: .92rem; line-height: 1.45; }
 .ballot-position-header .ballot-position-description { margin-top: .2rem; font-size: .68rem; line-height: 1.4; }
 .ballot-candidate-details { flex: 1 1 auto; }
 .ballot-candidate-details p { margin-top: .4rem !important; font-size: .68rem !important; line-height: 1.35 !important; }
+
+/* ==========================================================================
+   DEVICE COMPATIBILITY LAYER
+   Phone (≤768px), small phone (≤400px), tablet (≤1024px), landscape phones,
+   laptops, desktops and very large displays. Declared last so it can safely
+   refine the component styles above.
+   ========================================================================== */
+
+/* ---------- Base behaviour for every touch/mobile browser ---------- */
+html {
+  -webkit-text-size-adjust: 100%; /* stop Android/Chrome inflating text */
+  text-size-adjust: 100%;
+  overscroll-behavior-y: none;    /* no rubber-band gap behind fixed bars */
+}
+
+body {
+  -webkit-tap-highlight-color: transparent; /* no grey flash on tap */
+  min-height: 100vh;
+  min-height: 100dvh; /* use the visible viewport, not the address bar */
+}
+
+/* Never require a double-tap to activate a control. */
+button, a, [role="button"], input, select, textarea, label { touch-action: manipulation; }
+
+/* Momentum scrolling + thin scrollbars for horizontal scrollers. */
+.overflow-x-auto,
+.course-picker-options,
+.voter-actions,
+.receipt-lookup-form { -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.overflow-x-auto::-webkit-scrollbar,
+.course-picker-options::-webkit-scrollbar { height: 8px; width: 8px; }
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.course-picker-options::-webkit-scrollbar-thumb { border-radius: 999px; background: #cbd8e1; }
+.overflow-x-auto::-webkit-scrollbar-track,
+.course-picker-options::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Fixed bars respect notches / punch-holes / home indicator ---------- */
+.app-header,
+.admin-page > .admin-navbar,
+.admin-page > header:not(.app-header),
+.admin-page header.fixed {
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+.admin-sidebar,
+.admin-page > aside:not(.admin-sidebar),
+.admin-page .admin-dashboard-sidebar { padding-left: max(16px, env(safe-area-inset-left)); }
+.admin-main,
+.admin-page main { padding-bottom: max(48px, env(safe-area-inset-bottom)); }
+.auth-page,
+.login-page,
+.vote-success-page,
+.review-page {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* ---------- Dynamic viewport heights for full-height screens ---------- */
+.auth-shell { min-height: min(650px, 100dvh); }
+.admin-page { min-height: 100dvh; }
+.vote-success-page { min-height: 100dvh; }
+.review-page { min-height: calc(100dvh - 8rem); }
+.admin-sidebar,
+.admin-page > aside:not(.admin-sidebar),
+.admin-page .admin-dashboard-sidebar { min-height: calc(100dvh - 74px); }
+
+/* ---------- Tablet: iPad, Galaxy Tab, laptops in portrait ---------- */
+@media (max-width: 1024px) {
+  .admin-sidebar,
+  .admin-page > aside:not(.admin-sidebar),
+  .admin-page .admin-dashboard-sidebar { width: 224px; }
+  .admin-main { margin-left: 224px; width: calc(100% - 224px); padding: 30px 26px 52px; }
+  .admin-page > .admin-layout > main:not(.admin-main) { width: calc(100% - 224px); }
+  .admin-page main input,
+  .admin-page main textarea,
+  .admin-page main select { min-height: 46px; }
+  .voters-table { min-width: 940px; }
+  .results-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+}
+
+/* Portrait tablets and large phones: stack helper columns, keep fields wide. */
+@media (max-width: 900px) and (min-width: 769px) {
+  .course-picker-options { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .receipt-lookup-form { grid-template-columns: 1fr; }
+  .receipt-scan-button,
+  .receipt-shot-button,
+  .receipt-lookup-button { width: 100%; }
+  .admin-main { padding: 28px 22px 48px; }
+}
+
+/* ---------- Phones: prevent iOS input zoom, enlarge touch targets ---------- */
+@media (max-width: 768px) {
+  /* iOS Safari zooms into any field below 16px — force 16px on phones. */
+  input,
+  select,
+  textarea,
+  .field-input { font-size: 16px !important; line-height: 1.35; }
+  input[type="checkbox"],
+  input[type="radio"] { font-size: inherit !important; }
+
+  .btn-primary,
+  .btn-secondary { min-height: 48px; }
+  .header-logout { min-height: 40px; }
+  .theme-settings-trigger { min-height: 44px; }
+  .admin-page main button:not(.theme-settings-trigger) { min-height: 44px; }
+
+  .admin-main,
+  .admin-page main { padding-left: 14px; padding-right: 14px; }
+  .admin-page main section,
+  .admin-page main article { max-width: 100%; }
+
+  /* Voters table collapses into one card per voter. */
+  .voters-table {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    white-space: normal;
+    border-collapse: separate;
+  }
+  .voters-table thead { display: none; }
+  .voters-table tbody,
+  .voters-table tr,
+  .voters-table td { display: block; width: 100%; }
+  .voters-table tbody tr {
+    margin-bottom: 14px;
+    border: 1px solid #dce5ed;
+    border-radius: 16px;
+    background: #fff;
+    padding: 12px 8px 14px;
+    box-shadow: 0 6px 18px rgba(13, 36, 56, .05);
+  }
+  .voters-table td {
+    padding: 7px 12px !important;
+    border: 0;
+    white-space: normal;
+    text-align: left;
+  }
+  .voters-table td:last-child { min-width: 0 !important; text-align: left; }
+  .voters-table td[data-label]::before {
+    display: block;
+    margin-bottom: 4px;
+    color: #9aa9b7;
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    content: attr(data-label);
+  }
+  .voters-table td[data-label=""]::before { content: none; }
+  .voter-actions-cell { margin-top: 6px; border-top: 1px dashed #e5edf2 !important; padding-top: 10px !important; }
+  .voter-actions,
+  .voter-actions-cell .voter-actions {
+    display: grid !important;
+    min-width: 0 !important;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    justify-content: stretch !important;
+    gap: 8px !important;
+  }
+  .voter-actions > button,
+  .voter-action { width: 100%; min-height: 44px; justify-content: center; }
+
+  /* Stack toolbars and search rows instead of squeezing them. */
+  .receipt-scanner-heading { flex-direction: column; }
+  .receipt-scanner-actions { width: 100%; justify-content: stretch; }
+  .receipt-scanner-actions > button { flex: 1 1 140px; }
+  .receipt-scanner-frame { min-height: 200px; }
+  .receipt-scanner-frame video { max-height: 46vh; object-fit: contain; }
+
+  .results-grid { grid-template-columns: 1fr !important; }
+  .result-card { padding: 20px; }
+  .ballot-candidate-card { flex-wrap: wrap; }
+}
+
+/* ---------- Small phones: iPhone SE, compact Androids ---------- */
+@media (max-width: 400px) {
+  .auth-showcase { min-height: 205px; padding: 20px; }
+  .auth-showcase h2 { font-size: 1.7rem; }
+  .auth-body { padding: 30px 18px 26px; }
+  .admin-main,
+  .admin-page main { padding-left: 10px; padding-right: 10px; }
+  .voters-table tbody tr { padding: 10px 4px 12px; }
+  .voters-table td { padding: 6px 9px !important; }
+  .voter-actions,
+  .voter-actions-cell .voter-actions { grid-template-columns: 1fr; }
+  .receipt-lookup-heading h2,
+  .ballot-preview-heading h5 { font-size: 1.05rem; }
+}
+
+/* ---------- Landscape phones: keep camera and ballot usable ---------- */
+@media (orientation: landscape) and (max-height: 500px) {
+  .auth-page { align-items: start; padding: 14px; overflow-y: auto; }
+  .auth-shell { min-height: 0; }
+  .auth-showcase { min-height: 180px; padding: 18px 22px; }
+  .auth-showcase-copy { padding: 16px 0 8px; }
+  .auth-showcase h2 { font-size: 1.6rem; }
+  .auth-feature-list,
+  .auth-showcase-copy > p:not(.auth-kicker) { display: none; }
+  .auth-card { min-height: 0; }
+  .receipt-scanner-frame { min-height: 160px; }
+  .receipt-scanner-frame video { max-height: 52vh; }
+  .admin-sidebar,
+  .admin-page > aside:not(.admin-sidebar),
+  .admin-page .admin-dashboard-sidebar { overflow-y: auto; padding-top: 14px; padding-bottom: 14px; }
+  .sidebar-link { padding-top: 9px; padding-bottom: 9px; }
+}
+
+/* ---------- Large desktop monitors and TVs ---------- */
+@media (min-width: 1440px) {
+  .admin-main { padding: 36px 44px 60px; }
+}
+@media (min-width: 1800px) {
+  .admin-page main { margin-left: auto; margin-right: auto; max-width: 1600px; }
+}
+
+/* ---------- Comfortable field heights on phones ---------- */
+@media (max-width: 768px) {
+  .field-input,
+  .password-wrap .field-input { min-height: 48px; }
+  .eye-btn { right: 6px; width: 40px; height: 40px; }
+  .auth-divider { margin: 22px 0 16px; }
+  .auth-card .btn-primary,
+  .auth-card .btn-secondary { width: 100%; }
+}
+
+/* ---------- Touch devices: never leave hover styling stuck after a tap ---------- */
+@media (hover: none) {
+  .sidebar-link:hover,
+  .result-card:hover,
+  .my-vote-card:hover,
+  .ballot-candidate-card:hover,
+  .ballot-position-card:hover { transform: none; }
+  .sidebar-link:hover { background: transparent; color: #536579; }
+  .sidebar-link.active:hover { background: linear-gradient(90deg, #e5f5f6, #f3fbfb); color: #105663; }
+}
+
+/* ---------- Respect reduced-motion and device performance settings ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Wide-but-short screens (embedded/laptop browsers) ---------- */
+@media (min-width: 769px) and (max-height: 620px) {
+  .auth-page { align-items: start; overflow-y: auto; }
+  .auth-shell { min-height: 0; }
+  .auth-card { min-height: 0; }
+}
