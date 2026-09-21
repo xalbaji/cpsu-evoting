@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { SVGProps } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import CandidateProfileDialog, {
+  candidateAvatarTone,
+  candidateFullName as fullName,
+  candidateInitials as initialsOf,
+  candidateMetaLine,
+} from "../../components/CandidateProfileDialog";
 import { api } from "../../lib/api";
 
 /* ---------------- types (matches getBallot) ---------------- */
@@ -36,21 +42,6 @@ interface ElectionInfo {
 }
 
 /* ---------------- helpers ---------------- */
-const fullName = (c: Candidate) =>
-  `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() || "Unnamed candidate";
-
-const initialsOf = (c: Candidate) =>
-  `${c.firstName?.[0] ?? ""}${c.lastName?.[0] ?? ""}`.toUpperCase() || "?";
-
-const avatarTones = [
-  "from-brand-500 to-brand-700",
-  "from-sky-500 to-indigo-500",
-  "from-violet-500 to-fuchsia-500",
-  "from-amber-500 to-orange-500",
-  "from-rose-500 to-pink-600",
-  "from-teal-500 to-emerald-600",
-];
-
 const fmtDate = (d?: string) =>
   d
     ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -93,97 +84,130 @@ const XIcon = (p: Icon) => (
     <path d="M18 6 6 18M6 6l12 12" />
   </svg>
 );
+const InfoIcon = (p: Icon) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <circle cx="12" cy="12" r="9" /><path d="M12 11v5.5" /><path d="M12 7.6h.01" />
+  </svg>
+);
 
 /* ---------------- candidate card (full-width row) ---------------- */
 function CandidateCard({
-  candidate, selected, atMax, multi, onToggle,
+  candidate, selected, atMax, multi, onToggle, onViewProfile,
 }: {
   candidate: Candidate;
   selected: boolean;
   atMax: boolean;
   multi: boolean;
   onToggle: () => void;
+  onViewProfile: () => void;
 }) {
   const disabled = atMax && !selected;
-  const meta = [candidate.party, candidate.course, candidate.yearLevel ? `Year ${candidate.yearLevel}` : null]
-    .filter(Boolean)
-    .join(" · ");
+  const meta = candidateMetaLine(candidate);
+  const statement = (candidate.biography ?? "").trim();
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      disabled={disabled}
-      aria-pressed={selected}
-      title={candidate.biography || undefined}
-      className={`group flex w-full items-center gap-3.5 rounded-xl border p-3.5 text-left transition-all duration-200 ${
+    <div
+      className={`group flex flex-wrap items-center gap-x-2 gap-y-3 rounded-xl border p-3.5 transition-all duration-200 ${
         selected
           ? "border-brand-500 bg-brand-50 ring-2 ring-brand-500/30"
           : disabled
-            ? "cursor-not-allowed border-brand-100 bg-white opacity-50"
+            ? "border-brand-100 bg-white opacity-60"
             : "border-brand-200 bg-white hover:border-brand-400 hover:shadow-md"
       }`}
     >
-      {/* avatar */}
-      {candidate.photoUrl ? (
-        <img
-          src={candidate.photoUrl}
-          alt={fullName(candidate)}
-          className={`h-11 w-11 shrink-0 rounded-full object-cover ${
-            selected ? "ring-2 ring-brand-500 ring-offset-2" : "ring-1 ring-brand-200"
-          }`}
-        />
-      ) : (
-        <span
-          className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-linear-to-br font-sans text-sm font-extrabold text-white ${
-            avatarTones[(Number(candidate.candidateNumber) || 0) % avatarTones.length]
-          } ${selected ? "ring-2 ring-brand-500 ring-offset-2" : ""}`}
-        >
-          {initialsOf(candidate)}
-        </span>
-      )}
-
-      {/* identity — stretches to fill width */}
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate font-sans text-sm font-bold text-ink-900">
-            {fullName(candidate)}
-          </span>
-          <span className="shrink-0 rounded bg-brand-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-700">
-            #{candidate.candidateNumber}
-          </span>
-        </span>
-        {meta && <span className="mt-0.5 block truncate font-sans text-xs text-ink-500">{meta}</span>}
-      </span>
-
-      {/* selection indicator — circle for SINGLE, square for MULTIPLE */}
-      <span
-        aria-hidden
-        className={`grid h-6 w-6 shrink-0 place-items-center border-2 transition-all duration-200 ${
-          multi ? "rounded-md" : "rounded-full"
-        } ${
-          selected
-            ? "scale-100 border-brand-500 bg-brand-500 text-white"
-            : "scale-90 border-brand-300 bg-white text-transparent group-hover:border-brand-400"
-        }`}
+      {/* selection target: avatar + identity + indicator */}
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        aria-pressed={selected}
+        className="flex min-w-0 flex-1 items-center gap-3.5 text-left disabled:cursor-not-allowed"
       >
-        <CheckIcon className="h-3.5 w-3.5" />
-      </span>
-    </button>
+        {/* avatar */}
+        {candidate.photoUrl ? (
+          <img
+            src={candidate.photoUrl}
+            alt={fullName(candidate)}
+            className={`h-11 w-11 shrink-0 rounded-full object-cover ${
+              selected ? "ring-2 ring-brand-500 ring-offset-2" : "ring-1 ring-brand-200"
+            }`}
+          />
+        ) : (
+          <span
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-linear-to-br font-sans text-sm font-extrabold text-white ${candidateAvatarTone(candidate)} ${
+              selected ? "ring-2 ring-brand-500 ring-offset-2" : ""
+            }`}
+          >
+            {initialsOf(candidate)}
+          </span>
+        )}
+
+        {/* identity — stretches to fill width and previews the published statement */}
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="truncate font-sans text-sm font-bold text-ink-900">
+              {fullName(candidate)}
+            </span>
+            <span className="shrink-0 rounded bg-brand-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-700">
+              #{candidate.candidateNumber}
+            </span>
+          </span>
+          {meta && <span className="mt-0.5 block truncate font-sans text-xs text-ink-500">{meta}</span>}
+          {statement ? (
+            <span className="mt-1 line-clamp-2 font-sans text-xs leading-relaxed text-ink-500">
+              {statement}
+            </span>
+          ) : (
+            <span className="mt-1 block font-sans text-xs italic text-ink-400">
+              No written statement submitted.
+            </span>
+          )}
+        </span>
+
+        {/* selection indicator — circle for SINGLE, square for MULTIPLE */}
+        <span
+          aria-hidden
+          className={`grid h-6 w-6 shrink-0 place-items-center border-2 transition-all duration-200 ${
+            multi ? "rounded-md" : "rounded-full"
+          } ${
+            selected
+              ? "scale-100 border-brand-500 bg-brand-500 text-white"
+              : "scale-90 border-brand-300 bg-white text-transparent group-hover:border-brand-400"
+          }`}
+        >
+          <CheckIcon className="h-3.5 w-3.5" />
+        </span>
+      </button>
+
+      {/* full profile trigger — separate button so the two buttons never nest */}
+      <button
+        type="button"
+        onClick={onViewProfile}
+        aria-haspopup="dialog"
+        className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 font-sans text-xs font-bold text-brand-700 transition hover:border-brand-400 hover:bg-brand-100 active:scale-95 sm:w-auto"
+      >
+        <InfoIcon className="h-3.5 w-3.5" />
+        View profile
+      </button>
+    </div>
   );
 }
 
 /* ---------------- position section ---------------- */
 function PositionSection({
-  position, selectedIds, onToggle, onClear,
+  position, selectedIds, onToggle, onClear, onViewCandidate,
 }: {
   position: Position;
   selectedIds: string[];
   onToggle: (candidateId: string) => void;
   onClear: () => void;
+  onViewCandidate: (candidate: Candidate) => void;
 }) {
   const multi = position.votingType === "MULTIPLE";
   const atMax = multi && selectedIds.length >= position.maxSelections;
+  const submittedProfiles = position.candidates.filter(
+    (candidate) => (candidate.biography ?? "").trim().length > 0,
+  ).length;
 
   return (
     <section
@@ -237,10 +261,23 @@ function PositionSection({
               selected={selectedIds.includes(candidate._id)}
               atMax={atMax}
               onToggle={() => onToggle(candidate._id)}
+              onViewProfile={() => onViewCandidate(candidate)}
             />
           ))
         )}
       </div>
+
+      {/* transparency footer — how many candidates published a statement */}
+      {position.candidates.length > 0 && (
+        <p className="flex items-start gap-2 border-t border-brand-100 bg-brand-50/40 px-5 py-3 font-sans text-xs leading-relaxed text-ink-500 sm:px-6">
+          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
+          <span>
+            {submittedProfiles === position.candidates.length
+              ? `All ${position.candidates.length} candidates submitted a written statement — tap “View profile” to compare them on equal terms.`
+              : `${submittedProfiles} of ${position.candidates.length} candidates submitted a written statement. Tap “View profile” to read the same details for every candidate.`}
+          </span>
+        </p>
+      )}
     </section>
   );
 }
@@ -269,6 +306,7 @@ export default function VotingPage() {
   const [error, setError] = useState("");
   const [alreadyVoted, setAlreadyVoted] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [profileView, setProfileView] = useState<{ candidate: Candidate; position: Position } | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 1_000);
@@ -509,6 +547,17 @@ export default function VotingPage() {
         </div>
       </div>
 
+      {/* Fairness note — profiles can be reviewed before choosing */}
+      <section className="flex flex-wrap items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50/70 p-4">
+        <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+        <p className="min-w-0 flex-1 font-sans text-xs leading-relaxed text-ink-600">
+          <span className="font-bold text-brand-800">Read before you decide.</span> Tap{" "}
+          <span className="font-bold">View profile</span> on any candidate to see their full ballot details and written
+          statement. Every candidate is published with the same information, and opening a profile is never recorded
+          with your ballot.
+        </p>
+      </section>
+
       {/* Positions */}
       <div className="space-y-6">
         {positions.map((position) => (
@@ -518,6 +567,7 @@ export default function VotingPage() {
             selectedIds={selections[position.id] ?? []}
             onToggle={(candidateId) => toggleCandidate(position, candidateId)}
             onClear={() => clearPosition(position.id)}
+            onViewCandidate={(candidate) => setProfileView({ candidate, position })}
           />
         ))}
       </div>
@@ -545,6 +595,23 @@ export default function VotingPage() {
           </button>
         </div>
       </section>
+
+      {/* Full candidate profile — opened from any candidate card */}
+      {profileView && (
+        <CandidateProfileDialog
+          candidate={profileView.candidate}
+          positionName={profileView.position.name}
+          electionTitle={election?.title}
+          academicYear={election?.academicYear}
+          selected={(selections[profileView.position.id] ?? []).includes(profileView.candidate._id)}
+          selectionDisabled={
+            profileView.position.votingType === "MULTIPLE" &&
+            (selections[profileView.position.id] ?? []).length >= profileView.position.maxSelections
+          }
+          onToggleSelection={() => toggleCandidate(profileView.position, profileView.candidate._id)}
+          onClose={() => setProfileView(null)}
+        />
+      )}
     </div>
   );
 }

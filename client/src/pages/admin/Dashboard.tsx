@@ -625,15 +625,15 @@ export default function AdminDashboard() {
                         && Boolean(user?.course)
                         && courses.some((course) => course.toUpperCase() === user?.course?.toUpperCase());
                       return (
-                        <article key={election._id} className="rounded-xl border border-brand-200 bg-brand-50/50 p-4 transition hover:border-brand-500/40 hover:shadow-sm">
-                          <div className="flex items-start justify-between gap-3">
+                        <article key={election._id} className="min-w-0 w-full rounded-xl border border-brand-200 bg-brand-50/50 p-4 transition hover:border-brand-500/40 hover:shadow-sm">
+                          <div className="flex min-w-0 items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <h3 className="truncate font-bold text-brand-900">{election.title}</h3>
+                              <h3 className="truncate font-bold text-brand-900" title={election.title}>{election.title}</h3>
                               {courses.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{courses.map((course) => <span key={course} className="admin-course-chip">{course}</span>)}</div>}
                             </div>
                             <span className={`shrink-0 rounded-full px-2.5 py-1 font-sans text-[11px] font-bold ${status.className}`}>{status.text}</span>
                           </div>
-                          <div className="mt-3 flex items-center justify-between gap-3 font-sans text-xs text-ink-500">
+                          <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 font-sans text-xs text-ink-500">
                             <span>{election.approvalStatus === "PENDING" ? "Waiting for Super Admin review" : "Election record"}</span>
                             {moderatorCanVote && !election.hasVoted ? (
                               <Link to={`/voter/elections/${election._id}/vote`} className="font-bold text-brand-600 hover:underline">Vote now</Link>

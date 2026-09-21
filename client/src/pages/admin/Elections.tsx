@@ -899,8 +899,9 @@ function BallotEditor({ election, onChanged }: { election: Election; onChanged: 
                     <button type="button" onClick={() => setCandidateForm((current) => ({ ...current, photoUrl: "" }))}>Remove</button>
                   </div>
                 )}
-                <label className="text-xs font-bold text-ink-700">Biography (optional)
-                  <textarea name="biography" value={candidateForm.biography} onChange={(event) => setCandidateForm((current) => ({ ...current, biography: event.target.value }))} rows={2} className="mt-1 resize-y" />
+                <label className="text-xs font-bold text-ink-700">Candidate statement / platform (shown to voters)
+                  <textarea name="biography" value={candidateForm.biography} onChange={(event) => setCandidateForm((current) => ({ ...current, biography: event.target.value }))} rows={3} placeholder="Programs, plans, and experience — this is what voters read on the candidate's ballot profile." className="mt-1 resize-y" />
+                  <span className="block font-sans text-[11px] font-medium leading-relaxed text-ink-500">Voters can open each candidate&apos;s full profile on the ballot before choosing. Fill this in for every candidate so all of them are presented fairly.</span>
                 </label>
                 <button type="submit" disabled={busy || positions.length === 0} className="w-fit !px-3.5 !py-2 !text-xs active:scale-95"><PlusIcon className="mr-1.5 inline h-3.5 w-3.5" /> Add candidate</button>
               </div>

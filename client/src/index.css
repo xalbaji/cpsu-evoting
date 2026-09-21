@@ -743,6 +743,7 @@
 :root[data-theme="dark"] [class~="bg-white/70"],
 :root[data-theme="dark"] [class~="bg-white/60"] { background-color: var(--dark-surface) !important; }
 :root[data-theme="dark"] [class~="bg-brand-50"],
+:root[data-theme="dark"] [class~="bg-brand-50/50"],
 :root[data-theme="dark"] [class~="bg-brand-50/60"],
 :root[data-theme="dark"] [class~="bg-brand-50/70"],
 :root[data-theme="dark"] [class~="bg-brand-50/80"] { background-color: #102b3b !important; }
